@@ -50,6 +50,7 @@ export { useDictionary, useDictionaryQuery } from './useDictionary';
 export { useSpeech } from './useSpeech';
 export type { UseSpeechOptions, UseSpeechReturn } from './useSpeech';
 export { useVoiceRecognition } from './useVoiceRecognition';
+export { useWordbook } from './useWordbook';
 export type { 
   UseVoiceRecognitionOptions, 
   UseVoiceRecognitionReturn, 

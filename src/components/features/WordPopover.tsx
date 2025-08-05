@@ -59,12 +59,14 @@ export function WordPopover({ word, position, onClose, onAddToWordbook, classNam
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
-  // 计算弹窗位置
+  // 计算弹窗位置和大小
+  const maxHeight = Math.min(500, window.innerHeight - 40); // 最大高度500px或屏幕高度-40px
   const popoverStyle = {
     position: 'fixed' as const,
     left: Math.max(10, Math.min(position.x - 150, window.innerWidth - 310)),
-    top: Math.max(10, position.y - 10),
-    zIndex: 50
+    top: Math.max(10, Math.min(position.y - 10, window.innerHeight - maxHeight - 10)),
+    zIndex: 50,
+    maxHeight: `${maxHeight}px`
   };
 
   const handlePlayPronunciation = async () => {
@@ -118,13 +120,14 @@ export function WordPopover({ word, position, onClose, onAddToWordbook, classNam
       ref={popoverRef}
       style={popoverStyle}
       className={cn(
-        "w-80 bg-popover border border-border rounded-lg shadow-lg p-4",
+        "w-80 bg-popover border border-border rounded-lg shadow-lg",
         "animate-in fade-in-0 zoom-in-95 duration-200",
+        "flex flex-col overflow-hidden", // 添加flex布局和溢出隐藏
         className
       )}
     >
-      {/* 头部 */}
-      <div className="flex items-center justify-between mb-3">
+      {/* 头部 - 固定不滚动 */}
+      <div className="flex items-center justify-between p-4 pb-3 border-b border-border flex-shrink-0">
         <div className="flex items-center space-x-2">
           <BookOpen className="h-4 w-4 text-primary" />
           <span className="font-medium text-popover-foreground">单词查询</span>
@@ -139,143 +142,147 @@ export function WordPopover({ word, position, onClose, onAddToWordbook, classNam
         </Button>
       </div>
 
-      {/* 内容区域 */}
-      {!isAvailable && (
-        <div className="text-center py-8">
-          <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground mb-2">词典服务未配置</p>
-          <p className="text-xs text-muted-foreground">
-            请在设置中配置词典服务以查询单词释义
-          </p>
-        </div>
-      )}
+      {/* 内容区域 - 可滚动 */}
+      <div className="flex-1 overflow-y-auto px-4 py-3">
+        {!isAvailable && (
+          <div className="text-center py-8">
+            <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground mb-2">词典服务未配置</p>
+            <p className="text-xs text-muted-foreground">
+              请在设置中配置词典服务以查询单词释义
+            </p>
+          </div>
+        )}
 
-      {isAvailable && queryState.status === 'loading' && (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <span className="ml-2 text-sm text-muted-foreground">查询中...</span>
-        </div>
-      )}
+        {isAvailable && queryState.status === 'loading' && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="ml-2 text-sm text-muted-foreground">查询中...</span>
+          </div>
+        )}
 
-      {isAvailable && queryState.status === 'error' && (
-        <div className="text-center py-8">
-          <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-          <p className="text-sm text-destructive mb-2">
-            {queryState.error?.message || '查询失败'}
-          </p>
+        {isAvailable && queryState.status === 'error' && (
+          <div className="text-center py-8">
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+            <p className="text-sm text-destructive mb-2">
+              {queryState.error?.message || '查询失败'}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => lookupWord(word)}
+              className="mt-2"
+            >
+              重试
+            </Button>
+          </div>
+        )}
+
+        {serviceError && (
+          <div className="text-center py-8">
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+            <p className="text-sm text-destructive mb-2">
+              词典服务错误：{serviceError.message}
+            </p>
+          </div>
+        )}
+
+        {definition && (
+          <div className="space-y-4">
+            {/* 单词和音标 */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-popover-foreground">
+                  {definition.word}
+                </h3>
+                {definition.phonetic && (
+                  <p className="text-sm text-muted-foreground">
+                    {definition.phonetic}
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePlayPronunciation}
+                className="text-primary hover:text-primary/80"
+              >
+                <Volume2 className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* 词义列表 */}
+            <div className="space-y-3">
+              {definition.definitions.map((def, index) => (
+                <div key={index} className="border-l-2 border-primary/20 pl-3">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
+                      {def.partOfSpeech}
+                    </span>
+                  </div>
+                  <p className="text-sm text-popover-foreground mb-1">
+                    {def.meaning}
+                  </p>
+                  {def.example && (
+                    <p className="text-xs text-muted-foreground italic">
+                      例句：{def.example}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* 更多例句 */}
+            {definition.examples && definition.examples.length > 0 && (
+              <div className="pt-3 border-t border-border">
+                <h4 className="text-sm font-medium text-popover-foreground mb-2">
+                  更多例句
+                </h4>
+                <div className="space-y-1">
+                  {definition.examples.slice(0, 2).map((example, index) => (
+                    <p key={index} className="text-xs text-muted-foreground">
+                      • {example}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 操作按钮区域 - 固定在底部 */}
+      {definition && (
+        <div className="flex space-x-2 p-4 pt-3 border-t border-border flex-shrink-0">
+          {onAddToWordbook && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs"
+              onClick={handleAddToWordbook}
+              disabled={isAddingToWordbook}
+            >
+              {isAddingToWordbook ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  添加中...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3 w-3 mr-1" />
+                  添加到单词本
+                </>
+              )}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => lookupWord(word)}
-            className="mt-2"
+            className={cn("text-xs", onAddToWordbook ? "flex-1" : "w-full")}
+            onClick={onClose}
           >
-            重试
+            关闭
           </Button>
-        </div>
-      )}
-
-      {serviceError && (
-        <div className="text-center py-8">
-          <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-          <p className="text-sm text-destructive mb-2">
-            词典服务错误：{serviceError.message}
-          </p>
-        </div>
-      )}
-
-      {definition && (
-        <div className="space-y-4">
-          {/* 单词和音标 */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-popover-foreground">
-                {definition.word}
-              </h3>
-              {definition.phonetic && (
-                <p className="text-sm text-muted-foreground">
-                  {definition.phonetic}
-                </p>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePlayPronunciation}
-              className="text-primary hover:text-primary/80"
-            >
-              <Volume2 className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* 词义列表 */}
-          <div className="space-y-3">
-            {definition.definitions.map((def, index) => (
-              <div key={index} className="border-l-2 border-primary/20 pl-3">
-                <div className="flex items-center space-x-2 mb-1">
-                  <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
-                    {def.partOfSpeech}
-                  </span>
-                </div>
-                <p className="text-sm text-popover-foreground mb-1">
-                  {def.meaning}
-                </p>
-                {def.example && (
-                  <p className="text-xs text-muted-foreground italic">
-                    例句：{def.example}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* 更多例句 */}
-          {definition.examples && definition.examples.length > 0 && (
-            <div className="pt-3 border-t border-border">
-              <h4 className="text-sm font-medium text-popover-foreground mb-2">
-                更多例句
-              </h4>
-              <div className="space-y-1">
-                {definition.examples.slice(0, 2).map((example, index) => (
-                  <p key={index} className="text-xs text-muted-foreground">
-                    • {example}
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 操作按钮 */}
-          <div className="flex space-x-2 pt-3 border-t border-border">
-            {onAddToWordbook && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={handleAddToWordbook}
-                disabled={isAddingToWordbook}
-              >
-                {isAddingToWordbook ? (
-                  <>
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    添加中...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-3 w-3 mr-1" />
-                    添加到单词本
-                  </>
-                )}
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn("text-xs", onAddToWordbook ? "flex-1" : "w-full")}
-              onClick={onClose}
-            >
-              关闭
-            </Button>
-          </div>
         </div>
       )}
     </div>

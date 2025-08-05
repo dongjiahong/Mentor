@@ -447,7 +447,7 @@ export class StorageService {
   /**
    * 将数据库行映射为Word对象
    */
-  private mapRowToWord(row: any): Word {
+  public mapRowToWord(row: unknown): Word {
     return {
       id: row.id as number,
       word: row.word as string,
@@ -460,5 +460,12 @@ export class StorageService {
       nextReviewAt: row.next_review_at ? new Date(row.next_review_at as string) : undefined,
       createdAt: new Date(row.created_at as string)
     };
+  }
+
+  /**
+   * 获取数据库连接（供其他服务使用）
+   */
+  public getDatabaseConnection(): DatabaseConnection {
+    return this.dbConnection;
   }
 }

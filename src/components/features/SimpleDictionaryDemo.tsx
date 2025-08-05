@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { WordPopover } from './WordPopover';
-import { useDictionary } from '@/hooks';
+import { useDictionary, useWordbook } from '@/hooks';
 import { WordDefinition } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,8 @@ export function SimpleDictionaryDemo({ className }: SimpleDictionaryDemoProps) {
     isConfigured, 
     queryState 
   } = useDictionary();
+
+  const { addWord } = useWordbook();
 
   // 示例文本
   const sampleText = `
@@ -59,9 +61,21 @@ export function SimpleDictionaryDemo({ className }: SimpleDictionaryDemoProps) {
   };
 
   const handleAddToWordbook = async (word: string, definition: WordDefinition) => {
-    console.log('添加到单词本:', { word, definition });
-    await new Promise(resolve => setTimeout(resolve, 500));
-    alert(`单词 "${word}" 已添加到单词本！`);
+    try {
+      // 将词典定义转换为简单的字符串格式
+      const definitionText = definition.definitions
+        .map(def => `${def.partOfSpeech}: ${def.meaning}`)
+        .join('; ');
+      
+      // 获取发音信息
+      const pronunciation = definition.phonetic || definition.pronunciation;
+      
+      // 添加到单词本，标记为翻译查询
+      await addWord(word, definitionText, 'translation_lookup', pronunciation);
+    } catch (error) {
+      console.error('添加单词到单词本失败:', error);
+      throw error; // 重新抛出错误，让WordPopover处理
+    }
   };
 
   // 将文本分割为可点击的单词

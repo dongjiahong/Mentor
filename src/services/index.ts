@@ -66,4 +66,5 @@ export type { DictionaryConfig, DictionaryConfigValidation, ConfigField, Diction
 // 数据库和存储服务实现
 export { DatabaseConnection } from './database/connection';
 export { StorageService } from './storage/StorageService';
+export { WordbookService, MemoryAlgorithm } from './wordbook';
 export { DATABASE_SCHEMA, DATABASE_INDEXES, DATABASE_TRIGGERS } from './database/schema';

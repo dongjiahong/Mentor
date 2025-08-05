@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { LearningContent } from '@/types';
+import { LearningContent, WordDefinition } from '@/types';
 import { TextRenderer } from './TextRenderer';
 import { WordPopover } from './WordPopover';
 import { AudioControls } from './AudioControls';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Settings } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { useWordbook } from '@/hooks';
 
 interface ContentDisplayProps {
   content: LearningContent;
@@ -28,6 +29,8 @@ export function ContentDisplay({
     position: { x: number; y: number };
   } | null>(null);
 
+  const { addWord } = useWordbook();
+
   const handleWordClick = useCallback((word: string, event: React.MouseEvent) => {
     const rect = (event.target as HTMLElement).getBoundingClientRect();
     setSelectedWord({
@@ -47,6 +50,24 @@ export function ContentDisplay({
   const toggleTranslation = useCallback(() => {
     setShowTranslation(prev => !prev);
   }, []);
+
+  const handleAddToWordbook = useCallback(async (word: string, definition: WordDefinition) => {
+    try {
+      // 将词典定义转换为简单的字符串格式
+      const definitionText = definition.definitions
+        .map(def => `${def.partOfSpeech}: ${def.meaning}`)
+        .join('; ');
+      
+      // 获取发音信息
+      const pronunciation = definition.phonetic || definition.pronunciation;
+      
+      // 添加到单词本，标记为翻译查询
+      await addWord(word, definitionText, 'translation_lookup', pronunciation);
+    } catch (error) {
+      console.error('添加单词到单词本失败:', error);
+      throw error; // 重新抛出错误，让WordPopover处理
+    }
+  }, [addWord]);
 
 
 
@@ -134,6 +155,7 @@ export function ContentDisplay({
           word={selectedWord.word}
           position={selectedWord.position}
           onClose={handleClosePopover}
+          onAddToWordbook={handleAddToWordbook}
         />
       )}
     </div>
