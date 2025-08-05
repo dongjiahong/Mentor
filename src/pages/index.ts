@@ -1,5 +1,6 @@
 export { LearningPage } from './LearningPage';
 export { WordbookPage } from './WordbookPage';
+export { WordbookReviewPage } from './WordbookReviewPage';
 export { ProgressPage } from './ProgressPage';
 export { SettingsPage } from './SettingsPage';
 export { DictionaryDemoPage } from './DictionaryDemoPage';

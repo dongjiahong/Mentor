@@ -84,10 +84,7 @@ export function WordbookPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
 
-  // 初始化加载数据
-  useEffect(() => {
-    loadWords();
-  }, [loadWords]);
+  // 注意：不需要在这里初始化加载数据，useWordbook hook 会自动加载
 
   // 构建查询参数
   const queryParams = useMemo((): WordQueryParams => {
@@ -120,7 +117,7 @@ export function WordbookPage() {
 
     // 客户端排序
     result.sort((a, b) => {
-      let aValue: any, bValue: any;
+      let aValue: any, bValue: unknown;
 
       switch (sortBy) {
         case 'word':
@@ -154,10 +151,13 @@ export function WordbookPage() {
     return result;
   }, [words, sortBy, sortOrder]);
 
-  // 重新加载数据
+  // 重新加载数据（仅在查询参数变化时）
   useEffect(() => {
-    loadWords(queryParams);
-  }, [queryParams, loadWords]);
+    // 只有在有搜索或筛选条件时才重新加载
+    if (searchQuery || Object.values(filters).some(v => v !== undefined)) {
+      loadWords(queryParams);
+    }
+  }, [queryParams]);
 
   // 处理搜索
   const handleSearch = (query: string) => {
@@ -280,6 +280,16 @@ export function WordbookPage() {
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-4">
+          {stats && stats.needReviewWords > 0 && (
+            <Button
+              onClick={() => navigate('/wordbook/review')}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              开始复习 ({stats.needReviewWords})
+            </Button>
+          )}
+          
           {stats && (
             <div className="text-sm text-muted-foreground">
               总计: <span className="font-semibold text-foreground">{stats.totalWords}</span> 个单词

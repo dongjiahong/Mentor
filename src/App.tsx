@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { LearningPage } from './pages/LearningPage';
 import { WordbookPage } from './pages/WordbookPage';
+import { WordbookReviewPage } from './pages/WordbookReviewPage';
 import { ProgressPage } from './pages/ProgressPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { DictionaryDemoPage } from './pages/DictionaryDemoPage';
@@ -25,6 +26,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LearningPage />} />
           <Route path="/wordbook" element={<WordbookPage />} />
+          <Route path="/wordbook/review" element={<WordbookReviewPage />} />
           <Route path="/progress" element={<ProgressPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/dictionary-demo" element={<DictionaryDemoPage />} />

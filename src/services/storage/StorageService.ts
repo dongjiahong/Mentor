@@ -449,16 +449,16 @@ export class StorageService {
    */
   public mapRowToWord(row: unknown): Word {
     return {
-      id: row.id as number,
-      word: row.word as string,
-      definition: row.definition as string,
-      pronunciation: row.pronunciation as string || undefined,
-      addReason: row.add_reason as Word['addReason'],
-      proficiencyLevel: row.proficiency_level as number,
-      reviewCount: row.review_count as number,
-      lastReviewAt: row.last_review_at ? new Date(row.last_review_at as string) : undefined,
-      nextReviewAt: row.next_review_at ? new Date(row.next_review_at as string) : undefined,
-      createdAt: new Date(row.created_at as string)
+      id: row.id,
+      word: row.word,
+      definition: row.definition,
+      pronunciation: row.pronunciation || undefined,
+      addReason: row.add_reason,
+      proficiencyLevel: row.proficiency_level,
+      reviewCount: row.review_count,
+      lastReviewAt: row.last_review_at ? new Date(row.last_review_at) : undefined,
+      nextReviewAt: row.next_review_at ? new Date(row.next_review_at) : undefined,
+      createdAt: new Date(row.created_at)
     };
   }
 

@@ -47,7 +47,6 @@ export class MemoryAlgorithm {
   // SuperMemo算法参数
   private static readonly MIN_EASINESS_FACTOR = 1.3;
   private static readonly DEFAULT_EASINESS_FACTOR = 2.5;
-  private static readonly EASINESS_FACTOR_MODIFIER = 0.1;
 
   // 准确率阈值
   private static readonly ACCURACY_THRESHOLDS = {
@@ -276,7 +275,7 @@ export class MemoryAlgorithm {
    * 获取学习建议
    */
   public static getLearningAdvice(memoryState: MemoryState): string {
-    const { proficiencyLevel, repetitions } = memoryState;
+    const { proficiencyLevel } = memoryState;
     
     if (proficiencyLevel === 0) {
       return '这是一个新单词，建议多次练习以建立初步记忆。';

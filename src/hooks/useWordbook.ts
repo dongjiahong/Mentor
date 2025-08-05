@@ -45,6 +45,8 @@ interface UseWordbookReturn {
   // 复习相关方法
   getRecommendedReviewWords: (limit?: number) => Promise<Word[]>;
   batchUpdateReviewStatus: (wordIds: number[], accuracyScores: number[]) => Promise<Word[]>;
+  getTodayReviewQueue: () => Promise<Word[]>;
+  processReviewResult: (wordId: number, result: 'unknown' | 'familiar' | 'known') => Promise<Word | null>;
 
   // 工具方法
   refresh: () => Promise<void>;
@@ -63,35 +65,60 @@ export function useWordbook(): UseWordbookReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
 
+  // 加载初始数据
+  const loadInitialData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const wordsList = await wordbookService.getWordsList();
+      setWords(wordsList);
+      
+      const reviewWordsList = await wordbookService.getWordsForReview();
+      setReviewWords(reviewWordsList);
+      
+      const statsData = await wordbookService.getWordStats();
+      setStats(statsData);
+    } catch (err) {
+      const appError = err instanceof AppError ? err : new AppError({
+        type: ErrorType.DATABASE_ERROR,
+        message: '加载初始数据失败',
+        details: err
+      });
+      setError(appError);
+    } finally {
+      setLoading(false);
+    }
+  }, [wordbookService]);
+
   // 初始化服务
   useEffect(() => {
+    let isMounted = true;
+    
     const initService = async () => {
       try {
         setLoading(true);
         await wordbookService.initialize();
-        await loadInitialData();
+        
+        if (isMounted) {
+          await loadInitialData();
+        }
       } catch (err) {
-        setError(new AppError({
-          type: ErrorType.DATABASE_ERROR,
-          message: '初始化单词本服务失败',
-          details: err
-        }));
-      } finally {
-        setLoading(false);
+        if (isMounted) {
+          setError(new AppError({
+            type: ErrorType.DATABASE_ERROR,
+            message: '初始化单词本服务失败',
+            details: err
+          }));
+          setLoading(false);
+        }
       }
     };
 
     initService();
-  }, []);
-
-  // 加载初始数据
-  const loadInitialData = useCallback(async () => {
-    await Promise.all([
-      loadWords(),
-      loadReviewWords(),
-      loadStats()
-    ]);
-  }, []);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [wordbookService, loadInitialData]);
 
   // 清除错误
   const clearError = useCallback(() => {
@@ -270,12 +297,16 @@ export function useWordbook(): UseWordbookReturn {
   // ==================== 查询方法 ====================
 
   const loadWords = useCallback(async (params?: WordQueryParams): Promise<void> => {
-    await withErrorHandling(async () => {
+    const result = await withErrorHandling(async () => {
       setLoading(true);
       const wordsList = await wordbookService.getWordsList(params);
       setWords(wordsList);
+      return true;
     }, '加载单词列表失败');
-    setLoading(false);
+    
+    if (result !== null) {
+      setLoading(false);
+    }
   }, [wordbookService, withErrorHandling]);
 
   const loadReviewWords = useCallback(async (): Promise<void> => {
@@ -333,7 +364,42 @@ export function useWordbook(): UseWordbookReturn {
     }, '批量更新复习状态失败');
     
     return result || [];
+  }, [withErrorHandling, wordbookService, loadReviewWords, loadStats]);
+
+  // 获取今日复习队列
+  const getTodayReviewQueue = useCallback(async (): Promise<Word[]> => {
+    const result = await withErrorHandling(async () => {
+      return await wordbookService.getTodayReviewQueue();
+    }, '获取今日复习队列失败');
+    
+    return result || [];
   }, [wordbookService, withErrorHandling]);
+
+  // 处理复习结果
+  const processReviewResult = useCallback(async (
+    wordId: number, 
+    result: 'unknown' | 'familiar' | 'known'
+  ): Promise<Word | null> => {
+    return withErrorHandling(async () => {
+      const updatedWord = await wordbookService.processReviewResult(wordId, result);
+      
+      // 更新本地状态
+      setWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
+      setReviewWords(prev => {
+        const filtered = prev.filter(w => w.id !== wordId);
+        // 根据复习结果决定是否保留在复习列表中
+        if (result === 'unknown' || result === 'familiar') {
+          return [...filtered, updatedWord];
+        }
+        return filtered;
+      });
+
+      // 更新统计信息
+      await loadStats();
+      
+      return updatedWord;
+    }, '处理复习结果失败');
+  }, [withErrorHandling, wordbookService, loadStats]);
 
   // ==================== 工具方法 ====================
 
@@ -370,6 +436,8 @@ export function useWordbook(): UseWordbookReturn {
     // 复习相关方法
     getRecommendedReviewWords,
     batchUpdateReviewStatus,
+    getTodayReviewQueue,
+    processReviewResult,
 
     // 工具方法
     refresh,

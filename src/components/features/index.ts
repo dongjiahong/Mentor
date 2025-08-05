@@ -2,6 +2,7 @@ export { ContentDisplay } from './ContentDisplay';
 export { TextRenderer } from './TextRenderer';
 export { WordPopover } from './WordPopover';
 export { WordCard } from './WordCard';
+export { ReviewWordCard } from './ReviewWordCard';
 export { DictionaryDemo } from './DictionaryDemo';
 export { DictionaryConfig } from './DictionaryConfig';
 export { AudioControls } from './AudioControls';

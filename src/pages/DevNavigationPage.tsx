@@ -14,8 +14,10 @@ import {
   TestTube,
   Wrench,
   Home,
-  ExternalLink
+  ExternalLink,
+  Plus
 } from 'lucide-react';
+import { addTestWords } from '@/utils/testData';
 
 interface PageInfo {
   path: string;
@@ -223,6 +225,32 @@ export function DevNavigationPage() {
           </div>
         </div>
       ))}
+
+      {/* 开发工具 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>开发工具</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-medium mb-2">测试数据</h4>
+              <Button 
+                onClick={addTestWords}
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                添加测试单词
+              </Button>
+              <p className="text-sm text-muted-foreground mt-1">
+                添加一些测试单词到单词本，用于测试复习功能
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 快速链接 */}
       <Card>

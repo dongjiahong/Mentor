@@ -4,8 +4,7 @@ import {
   WordAddReason, 
   WordQueryParams,
   DatabaseError,
-  DatabaseErrorType,
-  LearningRecord
+  DatabaseErrorType
 } from '@/types';
 
 /**
@@ -206,7 +205,7 @@ export class WordbookService {
       }
 
       const results = this.storageService.getDatabaseConnection().exec(sql, sqlParams);
-      return results.map(row => this.storageService.mapRowToWord(row));
+      return results.map((row: any) => this.storageService.mapRowToWord(row));
     } catch (error) {
       throw new DatabaseError({
         type: DatabaseErrorType.QUERY_FAILED,
@@ -260,7 +259,7 @@ export class WordbookService {
       // 按熟练度分组
       const proficiencyResults = this.storageService.getDatabaseConnection().exec('SELECT proficiency_level, COUNT(*) as count FROM wordbook GROUP BY proficiency_level');
       const wordsByProficiency: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-      proficiencyResults.forEach((row: unknown) => {
+      proficiencyResults.forEach((row: any) => {
         wordsByProficiency[row.proficiency_level as number] = row.count as number;
       });
 
@@ -329,6 +328,9 @@ export class WordbookService {
         timeSpent: timeSpent || 0
       });
 
+      // 保存到持久化存储
+      this.save();
+
       // 返回更新后的单词
       const updatedWord = await this.getWord(wordId);
       if (!updatedWord) {
@@ -369,6 +371,9 @@ export class WordbookService {
         [proficiencyLevel, nextReviewAt.toISOString(), wordId]
       );
 
+      // 保存到持久化存储
+      this.save();
+
       const updatedWord = await this.getWord(wordId);
       if (!updatedWord) {
         throw new Error('更新单词后无法获取数据');
@@ -406,6 +411,8 @@ export class WordbookService {
   public async removeWordFromBook(wordId: number): Promise<void> {
     try {
       this.storageService.getDatabaseConnection().run('DELETE FROM wordbook WHERE id = ?', [wordId]);
+      // 保存到持久化存储
+      this.save();
     } catch (error) {
       throw new DatabaseError({
         type: DatabaseErrorType.QUERY_FAILED,
@@ -424,6 +431,9 @@ export class WordbookService {
         'UPDATE wordbook SET definition = ? WHERE id = ?',
         [definition, wordId]
       );
+
+      // 保存到持久化存储
+      this.save();
 
       const updatedWord = await this.getWord(wordId);
       if (!updatedWord) {
@@ -450,6 +460,9 @@ export class WordbookService {
         [pronunciation, wordId]
       );
 
+      // 保存到持久化存储
+      this.save();
+
       const updatedWord = await this.getWord(wordId);
       if (!updatedWord) {
         throw new Error('更新单词后无法获取数据');
@@ -474,6 +487,9 @@ export class WordbookService {
         'UPDATE wordbook SET add_reason = ? WHERE id = ?',
         [addReason, wordId]
       );
+
+      // 保存到持久化存储
+      this.save();
 
       const updatedWord = await this.getWord(wordId);
       if (!updatedWord) {
@@ -532,11 +548,118 @@ export class WordbookService {
       `;
       
       const results = this.storageService.getDatabaseConnection().exec(sql, [limit]);
-      return results.map(row => this.storageService.mapRowToWord(row));
+      return results.map((row: unknown) => this.storageService.mapRowToWord(row));
     } catch (error) {
       throw new DatabaseError({
         type: DatabaseErrorType.QUERY_FAILED,
         message: '获取推荐复习单词失败',
+        details: error
+      });
+    }
+  }
+
+  /**
+   * 获取今日复习队列（只包含当天和之前需要复习的单词）
+   */
+  public async getTodayReviewQueue(): Promise<Word[]> {
+    try {
+      const sql = `
+        SELECT * FROM wordbook 
+        WHERE next_review_at IS NULL OR date(next_review_at) <= date("now")
+        ORDER BY 
+          CASE 
+            WHEN next_review_at IS NULL THEN 0
+            ELSE julianday(next_review_at)
+          END ASC,
+          proficiency_level ASC,
+          created_at ASC
+      `;
+      
+      const results = this.storageService.getDatabaseConnection().exec(sql);
+      return results.map((row: unknown) => this.storageService.mapRowToWord(row));
+    } catch (error) {
+      throw new DatabaseError({
+        type: DatabaseErrorType.QUERY_FAILED,
+        message: '获取今日复习队列失败',
+        details: error
+      });
+    }
+  }
+
+  /**
+   * 处理复习结果并更新单词状态
+   */
+  public async processReviewResult(
+    wordId: number, 
+    result: 'unknown' | 'familiar' | 'known'
+  ): Promise<Word> {
+    const word = await this.getWord(wordId);
+    if (!word) {
+      throw new Error(`单词不存在: ID ${wordId}`);
+    }
+
+    let newProficiencyLevel = word.proficiencyLevel;
+    let nextReviewAt: Date;
+
+    switch (result) {
+      case 'unknown':
+        // 不会：熟练度降低，立即重新排队到今天复习队列的后面
+        newProficiencyLevel = Math.max(0, word.proficiencyLevel - 1);
+        nextReviewAt = new Date(); // 立即复习
+        break;
+        
+      case 'familiar':
+        // 查看释义：表明知道但不确定，需要重新排队
+        // 熟练度保持不变或略微降低
+        newProficiencyLevel = Math.max(0, word.proficiencyLevel);
+        nextReviewAt = new Date();
+        nextReviewAt.setHours(nextReviewAt.getHours() + 2); // 2小时后重新复习
+        break;
+        
+      case 'known':
+        // 记忆：表明了解单词，根据记忆曲线设置下次复习时间
+        newProficiencyLevel = Math.min(5, word.proficiencyLevel + 1);
+        nextReviewAt = this.calculateNextReviewDate(newProficiencyLevel);
+        break;
+        
+      default:
+        throw new Error(`未知的复习结果: ${result}`);
+    }
+
+    // 更新数据库
+    try {
+      this.storageService.getDatabaseConnection().run(
+        `UPDATE wordbook SET 
+         proficiency_level = ?, 
+         review_count = review_count + 1, 
+         last_review_at = CURRENT_TIMESTAMP, 
+         next_review_at = ? 
+         WHERE id = ?`,
+        [newProficiencyLevel, nextReviewAt.toISOString(), wordId]
+      );
+
+      // 记录学习活动
+      await this.storageService.recordLearningActivity({
+        activityType: 'reading',
+        word: word.word,
+        accuracyScore: result === 'known' ? 1 : result === 'familiar' ? 0.7 : 0.3,
+        timeSpent: 0
+      });
+
+      // 保存到持久化存储
+      this.save();
+
+      // 返回更新后的单词
+      const updatedWord = await this.getWord(wordId);
+      if (!updatedWord) {
+        throw new Error('更新单词后无法获取数据');
+      }
+
+      return updatedWord;
+    } catch (error) {
+      throw new DatabaseError({
+        type: DatabaseErrorType.QUERY_FAILED,
+        message: '处理复习结果失败',
         details: error
       });
     }
@@ -563,6 +686,9 @@ export class WordbookService {
       }
     });
 
+    // 保存到持久化存储
+    this.save();
+
     return updatedWords;
   }
 
@@ -572,7 +698,9 @@ export class WordbookService {
    * 添加单词到单词本的通用方法
    */
   private async addWordToBook(wordData: Omit<Word, 'id' | 'createdAt'>): Promise<Word> {
-    return this.storageService.addWordToBook(wordData);
+    const word = await this.storageService.addWordToBook(wordData);
+    this.save(); // 自动保存到持久化存储
+    return word;
   }
 
   /**
