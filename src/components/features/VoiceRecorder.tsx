@@ -29,7 +29,8 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { useSpeech } from '@/hooks/useSpeech';
-import { useVoiceRecognition, evaluatePronunciation } from '@/hooks/useVoiceRecognition';
+import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
+import { PronunciationEvaluator } from '@/services/pronunciation/PronunciationEvaluator';
 import { AppError, PronunciationScore } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -84,7 +85,7 @@ export function VoiceRecorder({
       if (autoEvaluate && text.trim() && targetText.trim()) {
         setIsEvaluating(true);
         try {
-          const score = evaluatePronunciation(targetText, text);
+          const score = PronunciationEvaluator.evaluate(targetText, text);
           setPronunciationScore(score);
           onRecordingComplete?.(text, score);
         } catch (error) {

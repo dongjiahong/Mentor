@@ -10,6 +10,9 @@ import { TTSTestPage } from './pages/TTSTestPage';
 import { TTSDebugPage } from './pages/TTSDebugPage';
 import { VoiceRecorderTestPage } from './pages/VoiceRecorderTestPage';
 import { STTDebugPage } from './pages/STTDebugPage';
+import { PronunciationPracticePage } from './pages/PronunciationPracticePage';
+import { PronunciationTestPage } from './pages/PronunciationTestPage';
+import { DevNavigationPage } from './pages/DevNavigationPage';
 import { useTheme } from './hooks';
 import './App.css';
 
@@ -30,6 +33,9 @@ function App() {
           <Route path="/tts-debug" element={<TTSDebugPage />} />
           <Route path="/voice-recorder-test" element={<VoiceRecorderTestPage />} />
           <Route path="/stt-debug" element={<STTDebugPage />} />
+          <Route path="/pronunciation-practice" element={<PronunciationPracticePage />} />
+          <Route path="/pronunciation-test" element={<PronunciationTestPage />} />
+          <Route path="/dev-nav" element={<DevNavigationPage />} />
         </Routes>
       </Layout>
     </Router>

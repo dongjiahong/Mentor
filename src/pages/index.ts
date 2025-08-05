@@ -7,3 +7,6 @@ export { DatabaseTestPage } from './DatabaseTestPage';
 export { TTSTestPage } from './TTSTestPage';
 export { VoiceRecorderTestPage } from './VoiceRecorderTestPage';
 export { STTDebugPage } from './STTDebugPage';
+export { PronunciationPracticePage } from './PronunciationPracticePage';
+export { PronunciationTestPage } from './PronunciationTestPage';
+export { DevNavigationPage } from './DevNavigationPage';

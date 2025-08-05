@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -73,10 +73,10 @@ export function TTSDebugPage() {
     return 'outline';
   };
 
-  const getBrowserName = (browserInfo: any) => {
-    if (browserInfo.isChrome) return 'Chrome';
-    if (browserInfo.isSafari) return 'Safari';
-    if (browserInfo.isFirefox) return 'Firefox';
+  const getBrowserName = (browserInfo: unknown) => {
+    if ((browserInfo as any).isChrome) return 'Chrome';
+    if ((browserInfo as any).isSafari) return 'Safari';
+    if ((browserInfo as unknown).isFirefox) return 'Firefox';
     return '未知浏览器';
   };
 

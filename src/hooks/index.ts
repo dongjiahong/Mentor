@@ -49,7 +49,7 @@ export { useSettings } from './useSettings';
 export { useDictionary, useDictionaryQuery } from './useDictionary';
 export { useSpeech } from './useSpeech';
 export type { UseSpeechOptions, UseSpeechReturn } from './useSpeech';
-export { useVoiceRecognition, evaluatePronunciation } from './useVoiceRecognition';
+export { useVoiceRecognition } from './useVoiceRecognition';
 export type { 
   UseVoiceRecognitionOptions, 
   UseVoiceRecognitionReturn, 

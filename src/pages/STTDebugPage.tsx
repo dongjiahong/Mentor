@@ -181,7 +181,7 @@ export function STTDebugPage() {
     } catch (error: unknown) {
       setTestResults(prev => ({ 
         ...prev, 
-        stt: `failed: ${error.message}` 
+        stt: `failed: ${(error as Error).message}` 
       }));
     }
   };

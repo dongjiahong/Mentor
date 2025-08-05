@@ -281,12 +281,12 @@ export class WebSpeechService implements ISpeechService {
         
         utterance.onend = (event) => {
           clearTimeout(timeoutId);
-          originalOnEnd?.(event);
+          if (originalOnEnd) originalOnEnd.call(utterance, event);
         };
         
         utterance.onerror = (event) => {
           clearTimeout(timeoutId);
-          originalOnError?.(event);
+          if (originalOnError) originalOnError.call(utterance, event);
         };
 
         this.currentUtterance = utterance;
@@ -395,16 +395,16 @@ export class WebSpeechService implements ISpeechService {
         resolve(finalTranscript.trim());
       };
 
-      this.recognition.onerror = (event: any) => {
+      this.recognition.onerror = (event: unknown) => {
         let errorType = ErrorType.API_ERROR;
-        let message = `语音识别失败: ${event.error}`;
+        let message = `语音识别失败: ${(event as any).error}`;
 
-        if (event.error === 'not-allowed') {
+        if ((event as any).error === 'not-allowed') {
           errorType = ErrorType.MICROPHONE_PERMISSION_DENIED;
           message = '麦克风权限被拒绝，请允许访问麦克风';
-        } else if (event.error === 'no-speech') {
+        } else if ((event as any).error === 'no-speech') {
           message = '未检测到语音输入';
-        } else if (event.error === 'network') {
+        } else if ((event as any).error === 'network') {
           errorType = ErrorType.NETWORK_ERROR;
           message = '网络连接错误，无法进行语音识别';
         }
@@ -413,7 +413,7 @@ export class WebSpeechService implements ISpeechService {
           type: errorType,
           message,
           details: event,
-          recoverable: event.error !== 'not-allowed'
+          recoverable: (event as unknown).error !== 'not-allowed'
         }));
       };
 
