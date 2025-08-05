@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { User, Bot, Palette, Loader2, AlertCircle } from 'lucide-react';
+import { User, Bot, Palette, BookOpen, Loader2, AlertCircle } from 'lucide-react';
 import { useSettings } from '@/hooks';
 import { useTheme } from '@/hooks';
-import { FormField } from '@/components/ui/FormField';
-import { Select } from '@/components/ui/Select';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
+import { DictionaryConfig } from '@/components/features';
+import { FormField } from '@/components/ui/form-field';
+import { SelectWithOptions } from '@/components/ui/select-with-options';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
+import { Alert } from '@/components/ui/alert';
 import { 
   ENGLISH_LEVEL_DESCRIPTIONS, 
   LEARNING_GOAL_DESCRIPTIONS,
@@ -159,7 +161,7 @@ export function SettingsPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="英语水平" required>
-              <Select
+              <SelectWithOptions
                 options={levelOptions}
                 value={formData.englishLevel}
                 onChange={(value) => updateFormData({ englishLevel: value as EnglishLevel })}
@@ -168,7 +170,7 @@ export function SettingsPage() {
             </FormField>
 
             <FormField label="学习目标" required>
-              <Select
+              <SelectWithOptions
                 options={goalOptions}
                 value={formData.learningGoal}
                 onChange={(value) => updateFormData({ learningGoal: value as LearningGoal })}
@@ -205,7 +207,7 @@ export function SettingsPage() {
             </FormField>
 
             <FormField label="模型名称" required>
-              <Select
+              <SelectWithOptions
                 options={modelOptions}
                 value={formData.modelName}
                 onChange={(value) => updateFormData({ modelName: value })}
@@ -214,16 +216,26 @@ export function SettingsPage() {
             </FormField>
 
             <div className="flex justify-start">
-              <Button
+              <LoadingButton
                 variant="outline"
                 onClick={handleTestConnection}
                 loading={testingConnection}
                 disabled={!formData.apiUrl || !formData.apiKey || !formData.modelName}
               >
                 {testingConnection ? '测试中...' : '测试连接'}
-              </Button>
+              </LoadingButton>
             </div>
           </div>
+        </div>
+
+        {/* 词典服务配置 */}
+        <div className="bg-card border border-border rounded-lg p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-card-foreground">词典服务</h2>
+          </div>
+          
+          <DictionaryConfig />
         </div>
 
         {/* 外观设置 */}
@@ -287,13 +299,13 @@ export function SettingsPage() {
           </div>
           
           <div className="flex space-x-3">
-            <Button
+            <LoadingButton
               onClick={handleSaveSettings}
               loading={isLoading}
               disabled={!hasUnsavedChanges}
             >
               {isLoading ? '保存中...' : '保存设置'}
-            </Button>
+            </LoadingButton>
           </div>
         </div>
 

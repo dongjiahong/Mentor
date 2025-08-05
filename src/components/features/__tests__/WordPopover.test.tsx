@@ -1,15 +1,7 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
 import { WordPopover } from '../WordPopover';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { beforeEach } from 'node:test';
-import { describe } from 'node:test';
+import { WordDefinition } from '@/types';
 
 // Mock speechSynthesis
 const mockSpeak = vi.fn();
@@ -27,12 +19,61 @@ Object.defineProperty(window, 'SpeechSynthesisUtterance', {
   value: mockSpeechSynthesisUtterance,
 });
 
+// Mock useDictionaryQuery hook
+const mockLookupWord = vi.fn();
+const mockGetWordPronunciation = vi.fn();
+const mockClearQueryState = vi.fn();
+
+const mockQueryState = {
+  status: 'idle' as const,
+  data: undefined,
+  error: undefined,
+  word: undefined,
+};
+
+vi.mock('@/hooks', () => ({
+  useDictionaryQuery: () => ({
+    lookupWord: mockLookupWord,
+    getWordPronunciation: mockGetWordPronunciation,
+    queryState: mockQueryState,
+    clearQueryState: mockClearQueryState,
+    isAvailable: true,
+    serviceError: null,
+  }),
+}));
+
 describe('WordPopover', () => {
   const mockPosition = { x: 100, y: 100 };
   const mockOnClose = vi.fn();
+  const mockOnAddToWordbook = vi.fn();
+
+  const mockDefinition: WordDefinition = {
+    word: 'test',
+    phonetic: '/test/',
+    pronunciation: 'http://example.com/test.mp3',
+    definitions: [
+      {
+        partOfSpeech: 'noun',
+        meaning: '测试；试验',
+        example: 'This is a test.'
+      },
+      {
+        partOfSpeech: 'verb',
+        meaning: '测试；检验',
+        example: 'We need to test this feature.'
+      }
+    ],
+    examples: [
+      'The test was successful.',
+      'Please test the application.'
+    ]
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockQueryState.status = 'idle';
+    mockQueryState.data = undefined;
+    mockQueryState.error = undefined;
   });
 
   it('应该正确渲染弹窗', () => {
@@ -45,10 +86,32 @@ describe('WordPopover', () => {
     );
     
     expect(screen.getByText('单词查询')).toBeInTheDocument();
-    expect(screen.getByText('查询中...')).toBeInTheDocument();
+  });
+
+  it('应该在服务不可用时显示提示', () => {
+    vi.mocked(vi.importActual('@/hooks')).useDictionaryQuery = () => ({
+      lookupWord: mockLookupWord,
+      getWordPronunciation: mockGetWordPronunciation,
+      queryState: mockQueryState,
+      clearQueryState: mockClearQueryState,
+      isAvailable: false,
+      serviceError: null,
+    });
+
+    render(
+      <WordPopover 
+        word="test" 
+        position={mockPosition} 
+        onClose={mockOnClose} 
+      />
+    );
+    
+    expect(screen.getByText('词典服务未配置')).toBeInTheDocument();
   });
 
   it('应该显示加载状态', () => {
+    mockQueryState.status = 'loading';
+    
     render(
       <WordPopover 
         word="test" 
@@ -60,7 +123,15 @@ describe('WordPopover', () => {
     expect(screen.getByText('查询中...')).toBeInTheDocument();
   });
 
-  it('应该在加载完成后显示单词定义', async () => {
+  it('应该显示错误状态', () => {
+    mockQueryState.status = 'error';
+    mockQueryState.error = {
+      type: 'API_ERROR' as const,
+      message: '查询失败',
+      timestamp: new Date(),
+      recoverable: false,
+    };
+    
     render(
       <WordPopover 
         word="test" 
@@ -69,17 +140,41 @@ describe('WordPopover', () => {
       />
     );
     
-    // 等待加载完成
-    await waitFor(() => {
-      expect(screen.getByText('test')).toBeInTheDocument();
-    }, { timeout: 1000 });
+    expect(screen.getByText('查询失败')).toBeInTheDocument();
+    expect(screen.getByText('重试')).toBeInTheDocument();
+  });
+
+  it('应该在查询成功后显示单词定义', () => {
+    mockQueryState.status = 'success';
+    mockQueryState.data = mockDefinition;
     
-    // 应该显示词性和释义
+    render(
+      <WordPopover 
+        word="test" 
+        position={mockPosition} 
+        onClose={mockOnClose} 
+      />
+    );
+    
+    expect(screen.getByText('test')).toBeInTheDocument();
+    expect(screen.getByText('/test/')).toBeInTheDocument();
     expect(screen.getByText('noun')).toBeInTheDocument();
     expect(screen.getByText('verb')).toBeInTheDocument();
+    expect(screen.getByText('测试；试验')).toBeInTheDocument();
+    expect(screen.getByText('测试；检验')).toBeInTheDocument();
   });
 
   it('应该支持播放发音', async () => {
+    mockQueryState.status = 'success';
+    mockQueryState.data = mockDefinition;
+    mockGetWordPronunciation.mockResolvedValue('http://example.com/test.mp3');
+    
+    // Mock Audio
+    const mockPlay = vi.fn().mockResolvedValue(undefined);
+    global.Audio = vi.fn().mockImplementation(() => ({
+      play: mockPlay,
+    }));
+    
     render(
       <WordPopover 
         word="test" 
@@ -88,25 +183,15 @@ describe('WordPopover', () => {
       />
     );
     
-    // 等待加载完成
+    const playButton = screen.getByRole('button', { name: /volume/i });
+    fireEvent.click(playButton);
+    
     await waitFor(() => {
-      expect(screen.getByText('test')).toBeInTheDocument();
+      expect(mockGetWordPronunciation).toHaveBeenCalledWith('test');
     });
-    
-    // 点击播放按钮（通过查找包含Volume2图标的按钮）
-    const playButtons = screen.getAllByRole('button');
-    const playButton = playButtons.find(button => 
-      button.querySelector('svg.lucide-volume2')
-    );
-    expect(playButton).toBeTruthy();
-    if (playButton) {
-      fireEvent.click(playButton);
-    }
-    
-    expect(mockSpeak).toHaveBeenCalled();
   });
 
-  it('应该支持关闭弹窗', async () => {
+  it('应该支持关闭弹窗', () => {
     render(
       <WordPopover 
         word="test" 
@@ -115,15 +200,8 @@ describe('WordPopover', () => {
       />
     );
     
-    // 点击关闭按钮（通过查找包含X图标的按钮）
-    const buttons = screen.getAllByRole('button');
-    const closeButton = buttons.find(button => 
-      button.querySelector('svg.lucide-x')
-    );
-    expect(closeButton).toBeTruthy();
-    if (closeButton) {
-      fireEvent.click(closeButton);
-    }
+    const closeButton = screen.getByRole('button', { name: /close/i });
+    fireEvent.click(closeButton);
     
     expect(mockOnClose).toHaveBeenCalled();
   });
@@ -140,7 +218,6 @@ describe('WordPopover', () => {
       </div>
     );
     
-    // 点击外部区域
     const outsideElement = screen.getByTestId('outside');
     fireEvent.mouseDown(outsideElement);
     
@@ -148,28 +225,84 @@ describe('WordPopover', () => {
   });
 
   it('应该支持添加到单词本', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockQueryState.status = 'success';
+    mockQueryState.data = mockDefinition;
+    mockOnAddToWordbook.mockResolvedValue(undefined);
     
     render(
       <WordPopover 
         word="test" 
         position={mockPosition} 
+        onClose={mockOnClose}
+        onAddToWordbook={mockOnAddToWordbook}
+      />
+    );
+    
+    const addButton = screen.getByText('添加到单词本');
+    fireEvent.click(addButton);
+    
+    await waitFor(() => {
+      expect(mockOnAddToWordbook).toHaveBeenCalledWith('test', mockDefinition);
+    });
+    
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('应该在没有onAddToWordbook回调时隐藏添加按钮', () => {
+    mockQueryState.status = 'success';
+    mockQueryState.data = mockDefinition;
+    
+    render(
+      <WordPopover 
+        word="test" 
+        position={mockPosition} 
+        onClose={mockOnClose}
+      />
+    );
+    
+    expect(screen.queryByText('添加到单词本')).not.toBeInTheDocument();
+  });
+
+  it('应该在添加到单词本时显示加载状态', async () => {
+    mockQueryState.status = 'success';
+    mockQueryState.data = mockDefinition;
+    
+    // 模拟慢速的添加操作
+    mockOnAddToWordbook.mockImplementation(() => 
+      new Promise(resolve => setTimeout(resolve, 100))
+    );
+    
+    render(
+      <WordPopover 
+        word="test" 
+        position={mockPosition} 
+        onClose={mockOnClose}
+        onAddToWordbook={mockOnAddToWordbook}
+      />
+    );
+    
+    const addButton = screen.getByText('添加到单词本');
+    fireEvent.click(addButton);
+    
+    expect(screen.getByText('添加中...')).toBeInTheDocument();
+    
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+    });
+  });
+
+  it('应该正确计算弹窗位置', () => {
+    const { container } = render(
+      <WordPopover 
+        word="test" 
+        position={{ x: 50, y: 50 }} 
         onClose={mockOnClose} 
       />
     );
     
-    // 等待加载完成
-    await waitFor(() => {
-      expect(screen.getByText('test')).toBeInTheDocument();
-    });
-    
-    // 点击添加到单词本按钮
-    const addButton = screen.getByText('添加到单词本');
-    fireEvent.click(addButton);
-    
-    expect(consoleSpy).toHaveBeenCalledWith('添加到单词本:', 'test');
-    expect(mockOnClose).toHaveBeenCalled();
-    
-    consoleSpy.mockRestore();
+    const popover = container.firstChild as HTMLElement;
+    expect(popover.style.position).toBe('fixed');
+    expect(popover.style.left).toBe('10px'); // Math.max(10, 50 - 150) = 10
+    expect(popover.style.top).toBe('40px'); // 50 - 10 = 40
   });
 });

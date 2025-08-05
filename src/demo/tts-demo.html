@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS功能演示</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .demo-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 4px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .word {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            margin: 0 2px;
+        }
+
+        .word:hover {
+            background: #e3f2fd;
+        }
+
+        .sentence {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 3px solid #007bff;
+            background: #f8f9fa;
+        }
+
+        .controls {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>TTS（文本转语音）功能演示</h1>
+
+    <div class="demo-section">
+        <h2>浏览器支持检测</h2>
+        <div id="support-status"></div>
+    </div>
+
+    <div class="demo-section">
+        <h2>基础TTS功能</h2>
+        <div class="controls">
+            <label>
+                语速: <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+                <span id="rate-value">1.0</span>
+            </label>
+            <br>
+            <label>
+                音调: <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1">
+                <span id="pitch-value">1.0</span>
+            </label>
+            <br>
+            <label>
+                音量: <input type="range" id="volume" min="0" max="1" step="0.1" value="1">
+                <span id="volume-value">1.0</span>
+            </label>
+            <br>
+            <label>
+                语音: <select id="voice-select"></select>
+            </label>
+        </div>
+
+        <textarea id="text-input" rows="4" cols="50" placeholder="输入要朗读的英文文本...">
+Hello, this is a test of the Text-to-Speech functionality. The system can read entire articles, individual sentences, or single words.
+        </textarea>
+        <br>
+        <button onclick="speakText()">播放全文</button>
+        <button onclick="pauseSpeech()">暂停</button>
+        <button onclick="resumeSpeech()">继续</button>
+        <button onclick="stopSpeech()">停止</button>
+
+        <div id="status" class="status" style="display: none;"></div>
+    </div>
+
+    <div class="demo-section">
+        <h2>单词播放演示</h2>
+        <p>点击下面的单词来听发音：</p>
+        <div>
+            <span class="word" onclick="speakWord('Hello')">Hello</span>
+            <span class="word" onclick="speakWord('World')">World</span>
+            <span class="word" onclick="speakWord('Speech')">Speech</span>
+            <span class="word" onclick="speakWord('Synthesis')">Synthesis</span>
+            <span class="word" onclick="speakWord('Technology')">Technology</span>
+            <span class="word" onclick="speakWord('Learning')">Learning</span>
+            <span class="word" onclick="speakWord('English')">English</span>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>句子播放演示</h2>
+        <p>点击播放按钮来听句子朗读：</p>
+        <div class="sentence">
+            <button onclick="speakSentence('This is a simple sentence.')">▶</button>
+            This is a simple sentence.
+        </div>
+        <div class="sentence">
+            <button onclick="speakSentence('How are you doing today?')">▶</button>
+            How are you doing today?
+        </div>
+        <div class="sentence">
+            <button onclick="speakSentence('The weather is beautiful outside.')">▶</button>
+            The weather is beautiful outside.
+        </div>
+        <div class="sentence">
+            <button onclick="speakSentence('Learning English can be fun and rewarding.')">▶</button>
+            Learning English can be fun and rewarding.
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentUtterance = null;
+        let speechSynthesis = window.speechSynthesis;
+        let voices = [];
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function () {
+            checkSupport();
+            loadVoices();
+            setupControls();
+        });
+
+        // 检查浏览器支持
+        function checkSupport() {
+            const statusDiv = document.getElementById('support-status');
+
+            if ('speechSynthesis' in window) {
+                statusDiv.innerHTML = '<span style="color: green;">✓ 支持语音合成 (TTS)</span>';
+            } else {
+                statusDiv.innerHTML = '<span style="color: red;">✗ 不支持语音合成</span>';
+            }
+
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                statusDiv.innerHTML += '<br><span style="color: green;">✓ 支持语音识别 (STT)</span>';
+            } else {
+                statusDiv.innerHTML += '<br><span style="color: red;">✗ 不支持语音识别</span>';
+            }
+        }
+
+        // 加载可用语音
+        function loadVoices() {
+            voices = speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voice-select');
+
+            // 清空现有选项
+            voiceSelect.innerHTML = '';
+
+            // 筛选英语语音
+            const englishVoices = voices.filter(voice => voice.lang.startsWith('en-'));
+
+            englishVoices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                voiceSelect.appendChild(option);
+            });
+
+            if (englishVoices.length === 0) {
+                const option = document.createElement('option');
+                option.textContent = '没有可用的英语语音';
+                voiceSelect.appendChild(option);
+            }
+        }
+
+        // 设置控制器
+        function setupControls() {
+            const rateSlider = document.getElementById('rate');
+            const pitchSlider = document.getElementById('pitch');
+            const volumeSlider = document.getElementById('volume');
+
+            rateSlider.addEventListener('input', function () {
+                document.getElementById('rate-value').textContent = this.value;
+            });
+
+            pitchSlider.addEventListener('input', function () {
+                document.getElementById('pitch-value').textContent = this.value;
+            });
+
+            volumeSlider.addEventListener('input', function () {
+                document.getElementById('volume-value').textContent = this.value;
+            });
+        }
+
+        // 语音合成事件处理
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+
+        // 获取当前设置
+        function getCurrentSettings() {
+            const voiceSelect = document.getElementById('voice-select');
+            const englishVoices = voices.filter(voice => voice.lang.startsWith('en-'));
+
+            return {
+                rate: parseFloat(document.getElementById('rate').value),
+                pitch: parseFloat(document.getElementById('pitch').value),
+                volume: parseFloat(document.getElementById('volume').value),
+                voice: englishVoices[voiceSelect.selectedIndex] || null
+            };
+        }
+
+        // 显示状态
+        function showStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = isError ? 'status error' : 'status';
+            statusDiv.style.display = 'block';
+
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // 播放文本
+        function speakText() {
+            const text = document.getElementById('text-input').value.trim();
+            if (!text) {
+                showStatus('请输入要朗读的文本', true);
+                return;
+            }
+
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            const settings = getCurrentSettings();
+
+            utterance.rate = settings.rate;
+            utterance.pitch = settings.pitch;
+            utterance.volume = settings.volume;
+            utterance.lang = 'en-US';
+
+            if (settings.voice) {
+                utterance.voice = settings.voice;
+            }
+
+            utterance.onstart = () => showStatus('开始播放...');
+            utterance.onend = () => showStatus('播放完成');
+            utterance.onerror = (event) => showStatus(`播放错误: ${event.error}`, true);
+
+            currentUtterance = utterance;
+            speechSynthesis.speak(utterance);
+        }
+
+        // 播放单词
+        function speakWord(word) {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(word);
+            const settings = getCurrentSettings();
+
+            utterance.rate = settings.rate * 0.8; // 单词播放稍慢
+            utterance.pitch = settings.pitch;
+            utterance.volume = settings.volume;
+            utterance.lang = 'en-US';
+
+            if (settings.voice) {
+                utterance.voice = settings.voice;
+            }
+
+            utterance.onstart = () => showStatus(`播放单词: ${word}`);
+            utterance.onerror = (event) => showStatus(`播放错误: ${event.error}`, true);
+
+            speechSynthesis.speak(utterance);
+        }
+
+        // 播放句子
+        function speakSentence(sentence) {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(sentence);
+            const settings = getCurrentSettings();
+
+            utterance.rate = settings.rate;
+            utterance.pitch = settings.pitch;
+            utterance.volume = settings.volume;
+            utterance.lang = 'en-US';
+
+            if (settings.voice) {
+                utterance.voice = settings.voice;
+            }
+
+            utterance.onstart = () => showStatus('播放句子...');
+            utterance.onend = () => showStatus('句子播放完成');
+            utterance.onerror = (event) => showStatus(`播放错误: ${event.error}`, true);
+
+            speechSynthesis.speak(utterance);
+        }
+
+        // 暂停播放
+        function pauseSpeech() {
+            if (speechSynthesis.speaking && !speechSynthesis.paused) {
+                speechSynthesis.pause();
+                showStatus('播放已暂停');
+            }
+        }
+
+        // 继续播放
+        function resumeSpeech() {
+            if (speechSynthesis.paused) {
+                speechSynthesis.resume();
+                showStatus('继续播放...');
+            }
+        }
+
+        // 停止播放
+        function stopSpeech() {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                showStatus('播放已停止');
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -353,14 +353,6 @@ export enum ErrorType {
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
 }
 
-export interface AppError {
-  type: ErrorType;
-  message: string;
-  details?: unknown;
-  timestamp?: Date;
-  recoverable?: boolean;     // 是否可恢复
-}
-
 export class AppError extends Error {
   public readonly type: ErrorType;
   public readonly details?: unknown;

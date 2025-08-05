@@ -2,8 +2,10 @@ import { useState, useCallback } from 'react';
 import { LearningContent } from '@/types';
 import { TextRenderer } from './TextRenderer';
 import { WordPopover } from './WordPopover';
-import { Button } from '@/components/ui/Button';
-import { Eye, EyeOff, Volume2 } from 'lucide-react';
+import { AudioControls } from './AudioControls';
+import { Button } from '@/components/ui/button';
+import { Eye, EyeOff, Settings } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 interface ContentDisplayProps {
@@ -11,17 +13,16 @@ interface ContentDisplayProps {
   className?: string;
   onWordClick?: (word: string) => void;
   onSentencePlay?: (sentence: string) => void;
-  onFullTextPlay?: () => void;
 }
 
 export function ContentDisplay({ 
   content, 
   className,
   onWordClick,
-  onSentencePlay,
-  onFullTextPlay
+  onSentencePlay
 }: ContentDisplayProps) {
   const [showTranslation, setShowTranslation] = useState(false);
+  const [showAudioControls, setShowAudioControls] = useState(false);
   const [selectedWord, setSelectedWord] = useState<{
     word: string;
     position: { x: number; y: number };
@@ -46,6 +47,8 @@ export function ContentDisplay({
   const toggleTranslation = useCallback(() => {
     setShowTranslation(prev => !prev);
   }, []);
+
+
 
   return (
     <div className={cn("bg-card border border-border rounded-lg", className)}>
@@ -85,17 +88,35 @@ export function ContentDisplay({
             )}
           </Button>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onFullTextPlay}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Volume2 className="h-4 w-4 mr-1" />
-            播放全文
-          </Button>
+          <Collapsible open={showAudioControls} onOpenChange={setShowAudioControls}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                音频控制
+              </Button>
+            </CollapsibleTrigger>
+          </Collapsible>
         </div>
       </div>
+
+      {/* 音频控制面板 */}
+      <Collapsible open={showAudioControls} onOpenChange={setShowAudioControls}>
+        <CollapsibleContent className="border-b border-border">
+          <div className="p-4">
+            <AudioControls
+              text={content.originalText}
+              showProgress={true}
+              showVolumeControl={true}
+              showSpeedControl={true}
+              showVoiceSelection={true}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* 内容区域 */}
       <div className="p-6">

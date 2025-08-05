@@ -5,6 +5,11 @@ import { WordbookPage } from './pages/WordbookPage';
 import { ProgressPage } from './pages/ProgressPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { DictionaryDemoPage } from './pages/DictionaryDemoPage';
+import { DatabaseTestPage } from './pages/DatabaseTestPage';
+import { TTSTestPage } from './pages/TTSTestPage';
+import { TTSDebugPage } from './pages/TTSDebugPage';
+import { VoiceRecorderTestPage } from './pages/VoiceRecorderTestPage';
+import { STTDebugPage } from './pages/STTDebugPage';
 import { useTheme } from './hooks';
 import './App.css';
 
@@ -20,6 +25,11 @@ function App() {
           <Route path="/progress" element={<ProgressPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/dictionary-demo" element={<DictionaryDemoPage />} />
+          <Route path="/database-test" element={<DatabaseTestPage />} />
+          <Route path="/tts-test" element={<TTSTestPage />} />
+          <Route path="/tts-debug" element={<TTSDebugPage />} />
+          <Route path="/voice-recorder-test" element={<VoiceRecorderTestPage />} />
+          <Route path="/stt-debug" element={<STTDebugPage />} />
         </Routes>
       </Layout>
     </Router>

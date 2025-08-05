@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Volume2, BookOpen, Loader2, AlertCircle, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDictionaryQuery } from '@/hooks';
 import { WordDefinition } from '@/types';
@@ -140,14 +140,24 @@ export function WordPopover({ word, position, onClose, onAddToWordbook, classNam
       </div>
 
       {/* 内容区域 */}
-      {queryState.status === 'loading' && (
+      {!isAvailable && (
+        <div className="text-center py-8">
+          <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground mb-2">词典服务未配置</p>
+          <p className="text-xs text-muted-foreground">
+            请在设置中配置词典服务以查询单词释义
+          </p>
+        </div>
+      )}
+
+      {isAvailable && queryState.status === 'loading' && (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
           <span className="ml-2 text-sm text-muted-foreground">查询中...</span>
         </div>
       )}
 
-      {queryState.status === 'error' && (
+      {isAvailable && queryState.status === 'error' && (
         <div className="text-center py-8">
           <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
           <p className="text-sm text-destructive mb-2">
@@ -156,26 +166,19 @@ export function WordPopover({ word, position, onClose, onAddToWordbook, classNam
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              clearQueryState();
-              // 重新查询
-              lookupWord(word);
-            }}
-            className="text-xs"
+            onClick={() => lookupWord(word)}
+            className="mt-2"
           >
             重试
           </Button>
         </div>
       )}
 
-      {!isAvailable && (
+      {serviceError && (
         <div className="text-center py-8">
-          <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground mb-2">
-            词典服务未配置
-          </p>
-          <p className="text-xs text-muted-foreground">
-            请在设置中配置词典服务
+          <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+          <p className="text-sm text-destructive mb-2">
+            词典服务错误：{serviceError.message}
           </p>
         </div>
       )}
@@ -242,8 +245,8 @@ export function WordPopover({ word, position, onClose, onAddToWordbook, classNam
           )}
 
           {/* 操作按钮 */}
-          {onAddToWordbook && (
-            <div className="flex space-x-2 pt-3 border-t border-border">
+          <div className="flex space-x-2 pt-3 border-t border-border">
+            {onAddToWordbook && (
               <Button
                 variant="outline"
                 size="sm"
@@ -263,16 +266,16 @@ export function WordPopover({ word, position, onClose, onAddToWordbook, classNam
                   </>
                 )}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={onClose}
-              >
-                关闭
-              </Button>
-            </div>
-          )}
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn("text-xs", onAddToWordbook ? "flex-1" : "w-full")}
+              onClick={onClose}
+            >
+              关闭
+            </Button>
+          </div>
         </div>
       )}
     </div>

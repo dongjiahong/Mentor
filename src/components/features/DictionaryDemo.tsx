@@ -1,361 +1,290 @@
 import { useState } from 'react';
-import { Search, Settings, BookOpen, Loader2, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Alert } from '@/components/ui/Alert';
+import { Search, BookOpen, Settings, Volume2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+
 import { WordPopover } from './WordPopover';
-import { useDictionary } from '@/hooks/useDictionary';
-import { DictionaryConfig } from '@/services';
+import { DictionaryConfig } from './DictionaryConfig';
+import { useDictionary } from '@/hooks';
+import { WordDefinition } from '@/types';
 import { cn } from '@/lib/utils';
 
-/**
- * 词典服务演示组件
- * 用于测试和演示词典服务的功能
- */
-export function DictionaryDemo() {
-  const [searchWord, setSearchWord] = useState('');
-  const [showPopover, setShowPopover] = useState(false);
+interface DictionaryDemoProps {
+  className?: string;
+}
+
+export function DictionaryDemo({ className }: DictionaryDemoProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<WordDefinition[]>([]);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [popoverPosition, setPopoverPosition] = useState({ x: 0, y: 0 });
   const [showConfig, setShowConfig] = useState(false);
-  const [configForm, setConfigForm] = useState({
-    provider: 'mock' as 'youdao' | 'mock',
-    appKey: '',
-    appSecret: '',
-    enabled: true,
-  });
 
-  const {
-    isConfigured,
-    isLoading,
-    error,
-    config,
-    updateConfig,
-    queryState,
-    lookupWord,
-    getAvailableProviders,
-    validateConfig,
+  const { 
+    searchWords, 
+    getWordPronunciation,
+    isConfigured, 
+    queryState 
   } = useDictionary();
 
-  const providers = getAvailableProviders();
+  // 示例文本
+  const sampleText = `
+    Learning English can be challenging but rewarding. Reading comprehension is essential 
+    for academic success. Students should practice vocabulary regularly to improve their 
+    language skills. Dictionary tools help learners understand unfamiliar words quickly.
+  `;
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchWord.trim()) return;
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
 
     try {
-      // 设置弹窗位置（居中显示）
-      setPopoverPosition({
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2 - 100,
-      });
-      setShowPopover(true);
+      const results = await searchWords(searchQuery.trim(), 5);
+      setSearchResults(results);
     } catch (error) {
       console.error('搜索失败:', error);
-    }
-  };
-
-  const handleConfigSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      await updateConfig(configForm);
-      setShowConfig(false);
-    } catch (error) {
-      console.error('保存配置失败:', error);
+      setSearchResults([]);
     }
   };
 
   const handleWordClick = (word: string, event: React.MouseEvent) => {
-    setSearchWord(word);
+    const rect = (event.target as HTMLElement).getBoundingClientRect();
     setPopoverPosition({
-      x: event.clientX,
-      y: event.clientY,
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 5,
     });
-    setShowPopover(true);
+    setSelectedWord(word);
   };
 
-  return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* 标题 */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          词典服务演示
-        </h1>
-        <p className="text-muted-foreground">
-          测试有道词典API集成和单词查询功能
-        </p>
-      </div>
+  const handleAddToWordbook = async (word: string, definition: WordDefinition) => {
+    // 这里应该调用实际的添加到单词本的功能
+    console.log('添加到单词本:', { word, definition });
+    
+    // 模拟添加过程
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    alert(`单词 "${word}" 已添加到单词本！`);
+  };
 
-      {/* 配置状态 */}
-      <div className="bg-card border border-border rounded-lg p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Settings className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">服务配置</h2>
-          </div>
+  const playPronunciation = async (word: string) => {
+    try {
+      const pronunciationUrl = await getWordPronunciation(word);
+      if (pronunciationUrl) {
+        const audio = new Audio(pronunciationUrl);
+        audio.play();
+      } else {
+        // 回退到TTS
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(word);
+          utterance.lang = 'en-US';
+          speechSynthesis.speak(utterance);
+        }
+      }
+    } catch (error) {
+      console.error('播放发音失败:', error);
+    }
+  };
+
+  // 将文本分割为可点击的单词
+  const renderClickableText = (text: string) => {
+    const words = text.split(/(\s+|[.,!?;:])/);
+    
+    return words.map((part, index) => {
+      const isWord = /^[a-zA-Z]+$/.test(part);
+      
+      if (isWord) {
+        return (
+          <span
+            key={index}
+            className="cursor-pointer hover:bg-primary/10 hover:text-primary rounded px-0.5 transition-colors"
+            onClick={(e) => handleWordClick(part.toLowerCase(), e)}
+            title={`点击查询 "${part}"`}
+          >
+            {part}
+          </span>
+        );
+      }
+      
+      return <span key={index}>{part}</span>;
+    });
+  };
+
+  if (showConfig) {
+    return (
+      <div className={cn("space-y-6", className)}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">词典服务配置</h2>
+          <Button
+            variant="outline"
+            onClick={() => setShowConfig(false)}
+          >
+            返回演示
+          </Button>
+        </div>
+        <DictionaryConfig />
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("space-y-6", className)}>
+      {/* 头部 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center space-x-2">
+            <BookOpen className="h-6 w-6" />
+            <span>词典服务演示</span>
+          </h2>
+          <p className="text-muted-foreground mt-1">
+            体验单词查询、发音播放和单词本管理功能
+          </p>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Badge variant={isConfigured ? "default" : "secondary"}>
+            {isConfigured ? "词典服务已启用" : "服务未配置"}
+          </Badge>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowConfig(!showConfig)}
+            onClick={() => setShowConfig(true)}
           >
-            {showConfig ? '隐藏配置' : '显示配置'}
+            <Settings className="h-4 w-4 mr-1" />
+            配置
           </Button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div>
-            <span className="text-sm text-muted-foreground">状态</span>
-            <div className="flex items-center space-x-2 mt-1">
-              <div className={cn(
-                "w-2 h-2 rounded-full",
-                isConfigured ? "bg-green-500" : "bg-red-500"
-              )} />
-              <span className="text-sm font-medium">
-                {isLoading ? '初始化中...' : isConfigured ? '已配置' : '未配置'}
-              </span>
-            </div>
-          </div>
-          <div>
-            <span className="text-sm text-muted-foreground">服务提供商</span>
-            <p className="text-sm font-medium mt-1">
-              {config?.provider === 'youdao' ? '有道词典' : '模拟服务'}
-            </p>
-          </div>
-          <div>
-            <span className="text-sm text-muted-foreground">启用状态</span>
-            <p className="text-sm font-medium mt-1">
-              {config?.enabled ? '已启用' : '已禁用'}
-            </p>
-          </div>
-        </div>
-
-        {error && (
-          <Alert className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <div>
-              <p className="font-medium">配置错误</p>
-              <p className="text-sm text-muted-foreground">{error.message}</p>
-            </div>
-          </Alert>
-        )}
-
-        {/* 配置表单 */}
-        {showConfig && (
-          <form onSubmit={handleConfigSave} className="space-y-4 pt-4 border-t border-border">
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                服务提供商
-              </label>
-              <select
-                value={configForm.provider}
-                onChange={(e) => setConfigForm(prev => ({
-                  ...prev,
-                  provider: e.target.value as 'youdao' | 'mock'
-                }))}
-                className="w-full px-3 py-2 border border-border rounded-md bg-background"
-              >
-                {providers.map(provider => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.name} - {provider.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {configForm.provider === 'youdao' && (
-              <>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    API应用Key
-                  </label>
-                  <Input
-                    type="text"
-                    value={configForm.appKey}
-                    onChange={(e) => setConfigForm(prev => ({
-                      ...prev,
-                      appKey: e.target.value
-                    }))}
-                    placeholder="请输入有道API应用Key"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    API应用密钥
-                  </label>
-                  <Input
-                    type="password"
-                    value={configForm.appSecret}
-                    onChange={(e) => setConfigForm(prev => ({
-                      ...prev,
-                      appSecret: e.target.value
-                    }))}
-                    placeholder="请输入有道API应用密钥"
-                  />
-                </div>
-              </>
-            )}
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="enabled"
-                checked={configForm.enabled}
-                onChange={(e) => setConfigForm(prev => ({
-                  ...prev,
-                  enabled: e.target.checked
-                }))}
-                className="rounded border-border"
-              />
-              <label htmlFor="enabled" className="text-sm font-medium">
-                启用词典服务
-              </label>
-            </div>
-
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  保存中...
-                </>
-              ) : (
-                '保存配置'
-              )}
+      {/* 搜索功能 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">单词搜索</CardTitle>
+          <CardDescription>
+            搜索单词并查看释义
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex space-x-2">
+            <Input
+              placeholder="输入要搜索的单词..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <Button 
+              onClick={handleSearch}
+              disabled={!searchQuery.trim() || queryState.status === 'loading'}
+            >
+              <Search className="h-4 w-4 mr-1" />
+              搜索
             </Button>
-          </form>
-        )}
-      </div>
-
-      {/* 搜索区域 */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Search className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">单词查询</h2>
-        </div>
-
-        <form onSubmit={handleSearch} className="flex space-x-2 mb-4">
-          <Input
-            type="text"
-            value={searchWord}
-            onChange={(e) => setSearchWord(e.target.value)}
-            placeholder="输入要查询的英文单词..."
-            className="flex-1"
-          />
-          <Button 
-            type="submit" 
-            disabled={!isConfigured || !searchWord.trim() || queryState.status === 'loading'}
-          >
-            {queryState.status === 'loading' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-          </Button>
-        </form>
-
-        {!isConfigured && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <div>
-              <p className="font-medium">词典服务未配置</p>
-              <p className="text-sm text-muted-foreground">
-                请先配置词典服务才能进行单词查询
-              </p>
-            </div>
-          </Alert>
-        )}
-      </div>
-
-      {/* 示例文本 */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <BookOpen className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">示例文本</h2>
-        </div>
-        <p className="text-foreground leading-relaxed">
-          点击下面的单词来查询释义：{' '}
-          <span 
-            className="text-primary cursor-pointer hover:underline font-medium"
-            onClick={(e) => handleWordClick('hello', e)}
-          >
-            hello
-          </span>
-          {', '}
-          <span 
-            className="text-primary cursor-pointer hover:underline font-medium"
-            onClick={(e) => handleWordClick('world', e)}
-          >
-            world
-          </span>
-          {', '}
-          <span 
-            className="text-primary cursor-pointer hover:underline font-medium"
-            onClick={(e) => handleWordClick('beautiful', e)}
-          >
-            beautiful
-          </span>
-          {', '}
-          <span 
-            className="text-primary cursor-pointer hover:underline font-medium"
-            onClick={(e) => handleWordClick('language', e)}
-          >
-            language
-          </span>
-          {', '}
-          <span 
-            className="text-primary cursor-pointer hover:underline font-medium"
-            onClick={(e) => handleWordClick('learning', e)}
-          >
-            learning
-          </span>
-          {', '}
-          <span 
-            className="text-primary cursor-pointer hover:underline font-medium"
-            onClick={(e) => handleWordClick('dictionary', e)}
-          >
-            dictionary
-          </span>
-        </p>
-      </div>
-
-      {/* 查询历史 */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">查询状态</h2>
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <span className="text-sm text-muted-foreground">当前状态:</span>
-            <span className="text-sm font-medium">
-              {queryState.status === 'idle' && '待查询'}
-              {queryState.status === 'loading' && '查询中...'}
-              {queryState.status === 'success' && '查询成功'}
-              {queryState.status === 'error' && '查询失败'}
-            </span>
           </div>
-          {queryState.word && (
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">查询单词:</span>
-              <span className="text-sm font-medium">{queryState.word}</span>
+
+          {/* 搜索结果 */}
+          {searchResults.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="font-medium">搜索结果：</h4>
+              <div className="space-y-2">
+                {searchResults.map((result, index) => (
+                  <div key={index} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{result.word}</span>
+                        {result.phonetic && (
+                          <span className="text-sm text-muted-foreground">
+                            {result.phonetic}
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => playPronunciation(result.word)}
+                      >
+                        <Volume2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="space-y-1">
+                      {result.definitions.slice(0, 2).map((def, defIndex) => (
+                        <div key={defIndex} className="text-sm">
+                          <Badge variant="outline" className="mr-2">
+                            {def.partOfSpeech}
+                          </Badge>
+                          <span>{def.meaning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-          {queryState.error && (
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">错误信息:</span>
-              <span className="text-sm text-destructive">{queryState.error.message}</span>
+        </CardContent>
+      </Card>
+
+      {/* 交互式文本 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">交互式阅读</CardTitle>
+          <CardDescription>
+            点击文本中的单词查看释义
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="prose prose-sm max-w-none">
+            <p className="leading-relaxed text-foreground">
+              {renderClickableText(sampleText)}
+            </p>
+          </div>
+          
+          <div className="mt-4 p-4 bg-muted rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              💡 提示：点击文本中的任意单词查看详细释义。{isConfigured ? "当前使用免费词典API，提供真实的英语词典查询。" : "请先配置词典服务。"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 功能说明 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">功能特性</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="font-medium">✨ 核心功能</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• 实时单词查询</li>
+                <li>• 音标和发音播放</li>
+                <li>• 多种词性释义</li>
+                <li>• 例句展示</li>
+                <li>• 查询历史记录</li>
+              </ul>
             </div>
-          )}
-        </div>
-      </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium">🔧 技术特性</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• 智能缓存机制</li>
+                <li>• 网络错误处理</li>
+                <li>• 配置验证</li>
+                <li>• 响应式设计</li>
+                <li>• TypeScript 支持</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 单词弹窗 */}
-      {showPopover && searchWord && (
+      {selectedWord && (
         <WordPopover
-          word={searchWord}
+          word={selectedWord}
           position={popoverPosition}
-          onClose={() => setShowPopover(false)}
-          onAddToWordbook={(word, definition) => {
-            console.log('添加到单词本:', word, definition);
-            // 这里应该调用实际的添加到单词本的功能
-            return Promise.resolve();
-          }}
+          onClose={() => setSelectedWord(null)}
+          onAddToWordbook={handleAddToWordbook}
         />
       )}
     </div>

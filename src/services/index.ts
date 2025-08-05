@@ -54,10 +54,14 @@ export interface IStorageService {
 // AI服务实现
 export { createAIService, defaultAIService } from './ai/AIService';
 
+// 语音服务实现
+export { WebSpeechService, defaultSpeechService, createSpeechService } from './speech/SpeechService';
+export type { SpeechPlaybackState, SpeechPlaybackEvents } from './speech/SpeechService';
+
 // 词典服务实现
-export { YoudaoDictionaryService, MockDictionaryService, createYoudaoDictionaryService } from './dictionary/DictionaryService';
+export { FreeDictionaryService, createFreeDictionaryService } from './dictionary/DictionaryService';
 export { DictionaryConfigManager, DictionaryServiceFactory } from './dictionary/DictionaryConfig';
-export type { DictionaryConfig, DictionaryConfigValidation } from './dictionary/DictionaryConfig';
+export type { DictionaryConfig, DictionaryConfigValidation, ConfigField, DictionaryProvider } from './dictionary/DictionaryConfig';
 
 // 数据库和存储服务实现
 export { DatabaseConnection } from './database/connection';

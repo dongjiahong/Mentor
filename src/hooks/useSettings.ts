@@ -40,9 +40,9 @@ export function useSettings() {
   const [formData, setFormData] = useState<SettingsFormData>({
     englishLevel: 'A1',
     learningGoal: 'daily_conversation',
-    apiUrl: 'https://api.openai.com/v1',
+    apiUrl: 'https://api-inference.modelscope.cn/v1/',
     apiKey: '',
-    modelName: 'gpt-3.5-turbo'
+    modelName: 'Qwen/Qwen3-235B-A22B-Instruct-2507'
   });
 
   const storageService = new StorageService();
@@ -71,20 +71,20 @@ export function useSettings() {
         setFormData({
           englishLevel: userProfile?.englishLevel || 'A1',
           learningGoal: userProfile?.learningGoal || 'daily_conversation',
-          apiUrl: aiConfig?.apiUrl || 'https://api.openai.com/v1',
+          apiUrl: aiConfig?.apiUrl || 'https://api-inference.modelscope.cn/v1/',
           apiKey: aiConfig?.apiKey || '',
-          modelName: aiConfig?.modelName || 'gpt-3.5-turbo'
+          modelName: aiConfig?.modelName || 'Qwen/Qwen3-235B-A22B-Instruct-2507'
         });
       }
     } catch (error) {
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: {
+        error: new AppError({
           type: ErrorType.DATABASE_ERROR,
           message: '加载设置失败',
           details: error
-        }
+        })
       }));
     }
   }, []);
@@ -100,11 +100,11 @@ export function useSettings() {
         setState(prev => ({
           ...prev,
           isLoading: false,
-          error: {
+          error: new AppError({
             type: ErrorType.VALIDATION_ERROR,
             message: '表单验证失败',
             details: validation.errors
-          }
+          })
         }));
         return false;
       }
@@ -138,11 +138,11 @@ export function useSettings() {
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: {
+        error: new AppError({
           type: ErrorType.DATABASE_ERROR,
           message: '保存设置失败',
           details: error
-        }
+        })
       }));
       return false;
     }
@@ -236,9 +236,9 @@ export function useSettings() {
       setFormData({
         englishLevel: state.userProfile?.englishLevel || 'A1',
         learningGoal: state.userProfile?.learningGoal || 'daily_conversation',
-        apiUrl: state.aiConfig?.apiUrl || 'https://api.openai.com/v1',
+        apiUrl: state.aiConfig?.apiUrl || 'https://api-inference.modelscope.cn/v1/',
         apiKey: state.aiConfig?.apiKey || '',
-        modelName: state.aiConfig?.modelName || 'gpt-3.5-turbo'
+        modelName: state.aiConfig?.modelName || 'Qwen/Qwen3-235B-A22B-Instruct-2507'
       });
     }
     setState(prev => ({ ...prev, hasUnsavedChanges: false }));

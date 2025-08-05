@@ -50,6 +50,9 @@ export class DatabaseConnection {
         this.db = new SQL.Database();
       }
 
+      // 先设置初始化标志，避免循环依赖
+      this.isInitialized = true;
+
       // 创建表结构
       await this.createTables();
       
@@ -58,11 +61,13 @@ export class DatabaseConnection {
       
       // 创建触发器
       await this.createTriggers();
-
-      this.isInitialized = true;
       
       console.log('数据库初始化成功');
     } catch (error) {
+      // 如果初始化失败，重置状态
+      this.isInitialized = false;
+      this.db = null;
+      
       console.error('数据库初始化失败:', error);
       throw new DatabaseError({
         type: DatabaseErrorType.INITIALIZATION_FAILED,

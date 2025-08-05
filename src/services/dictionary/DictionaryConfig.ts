@@ -3,9 +3,7 @@ import { AppError, ErrorType } from '@/types';
 // 词典配置接口
 export interface DictionaryConfig {
   id: number;
-  provider: 'youdao' | 'mock';
-  appKey: string;
-  appSecret: string;
+  provider: 'free';
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -16,6 +14,24 @@ export interface DictionaryConfigValidation {
   isValid: boolean;
   errors: string[];
   warnings?: string[];
+}
+
+// 配置字段接口
+export interface ConfigField {
+  name: string;
+  label: string;
+  type: 'text' | 'password' | 'url';
+  required: boolean;
+  placeholder?: string;
+}
+
+// 词典提供商接口
+export interface DictionaryProvider {
+  id: string;
+  name: string;
+  description: string;
+  requiresConfig: boolean;
+  configFields: ConfigField[];
 }
 
 /**
@@ -133,29 +149,8 @@ export class DictionaryConfigManager {
     // 验证必填字段
     if (!config.provider) {
       errors.push('词典服务提供商不能为空');
-    } else if (!['youdao', 'mock'].includes(config.provider)) {
+    } else if (config.provider !== 'free') {
       errors.push('不支持的词典服务提供商');
-    }
-
-    // 如果是有道词典，验证API配置
-    if (config.provider === 'youdao') {
-      if (!config.appKey || config.appKey.trim() === '') {
-        errors.push('有道API应用Key不能为空');
-      }
-
-      if (!config.appSecret || config.appSecret.trim() === '') {
-        errors.push('有道API应用密钥不能为空');
-      }
-
-      // 检查Key格式（有道的appKey通常是数字）
-      if (config.appKey && !/^\d+$/.test(config.appKey.trim())) {
-        warnings.push('有道API应用Key格式可能不正确，通常应该是纯数字');
-      }
-
-      // 检查密钥长度
-      if (config.appSecret && config.appSecret.trim().length < 10) {
-        warnings.push('有道API应用密钥长度可能不正确');
-      }
     }
 
     return {
@@ -172,17 +167,10 @@ export class DictionaryConfigManager {
    */
   static async testConfig(config: DictionaryConfig): Promise<boolean> {
     try {
-      if (config.provider === 'mock') {
-        // 模拟服务总是可用的
+      if (config.provider === 'free') {
+        // 免费词典API总是可用的
         return true;
       }
-
-      if (config.provider === 'youdao') {
-        // 这里可以实现实际的API连接测试
-        // 暂时返回true，实际项目中应该调用API进行测试
-        return true;
-      }
-
       return false;
     } catch (error) {
       console.error('测试词典配置失败:', error);
@@ -196,9 +184,7 @@ export class DictionaryConfigManager {
    */
   static getDefaultConfig(): Omit<DictionaryConfig, 'id' | 'createdAt' | 'updatedAt'> {
     return {
-      provider: 'mock',
-      appKey: '',
-      appSecret: '',
+      provider: 'free', // 默认使用免费词典API，提供真实查询功能
       enabled: true,
     };
   }
@@ -229,7 +215,7 @@ export class DictionaryServiceFactory {
    * @returns 词典服务实例
    */
   static async createService(config?: DictionaryConfig) {
-    const { YoudaoDictionaryService, MockDictionaryService } = await import('./DictionaryService');
+
     
     const actualConfig = config || DictionaryConfigManager.getConfig();
     
@@ -257,11 +243,9 @@ export class DictionaryServiceFactory {
     }
 
     switch (actualConfig.provider) {
-      case 'youdao':
-        return new YoudaoDictionaryService(actualConfig.appKey, actualConfig.appSecret);
-      
-      case 'mock':
-        return new MockDictionaryService();
+      case 'free':
+        const { FreeDictionaryService } = await import('./DictionaryService');
+        return new FreeDictionaryService();
       
       default:
         throw new AppError({
@@ -275,22 +259,12 @@ export class DictionaryServiceFactory {
    * 获取可用的词典服务提供商列表
    * @returns 提供商列表
    */
-  static getAvailableProviders() {
+  static getAvailableProviders(): DictionaryProvider[] {
     return [
       {
-        id: 'youdao',
-        name: '有道词典',
-        description: '网易有道词典API服务',
-        requiresConfig: true,
-        configFields: [
-          { name: 'appKey', label: 'API应用Key', type: 'text', required: true },
-          { name: 'appSecret', label: 'API应用密钥', type: 'password', required: true }
-        ]
-      },
-      {
-        id: 'mock',
-        name: '模拟服务',
-        description: '用于开发和测试的模拟词典服务',
+        id: 'free',
+        name: '免费词典',
+        description: '使用 Free Dictionary API 提供真实的英语词典查询，无需配置',
         requiresConfig: false,
         configFields: []
       }

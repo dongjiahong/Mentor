@@ -8,6 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 yarn.lock
+*.test.ts
+*.test.tsx
+test*.ts*
 
 node_modules
 dist

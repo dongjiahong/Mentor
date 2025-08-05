@@ -14,7 +14,7 @@ describe('AIService 集成测试', () => {
   beforeAll(() => {
     // 使用.env.local中的配置进行测试
     const apiUrl = 'https://api-inference.modelscope.cn/v1/';
-    const apiKey = 'ms-b73a047d-0609-4ab7-8040-3e6ebd633839';
+    const apiKey = '';
     const modelName = 'Qwen/Qwen3-235B-A22B-Instruct-2507';
 
     testConfig = {

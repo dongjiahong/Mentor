@@ -1,26 +1,22 @@
 import { DictionaryService, WordDefinition, Definition, AppError, ErrorType } from '@/types';
-import CryptoJS from 'crypto-js';
 
-// 有道词典API响应接口
-interface YoudaoApiResponse {
-  errorCode: string;
-  query: string;
-  translation?: string[];
-  basic?: {
-    phonetic?: string;
-    'uk-phonetic'?: string;
-    'us-phonetic'?: string;
-    'uk-speech'?: string;
-    'us-speech'?: string;
-    explains: string[];
-  };
-  web?: Array<{
-    key: string;
-    value: string[];
+// Free Dictionary API响应接口
+interface FreeDictionaryResponse {
+  word: string;
+  phonetic?: string;
+  phonetics: Array<{
+    text?: string;
+    audio?: string;
   }>;
-  l: string;
-  tSpeakUrl?: string;
-  speakUrl?: string;
+  meanings: Array<{
+    partOfSpeech: string;
+    definitions: Array<{
+      definition: string;
+      example?: string;
+      synonyms?: string[];
+      antonyms?: string[];
+    }>;
+  }>;
 }
 
 // 查询历史记录接口
@@ -38,13 +34,11 @@ interface CacheItem {
 }
 
 /**
- * 有道词典服务实现
- * 提供单词查询、释义显示、查询历史记录和缓存功能
+ * 免费词典服务实现
+ * 使用 Free Dictionary API 提供真实的单词查询功能
  */
-export class YoudaoDictionaryService implements DictionaryService {
-  private readonly appKey: string;
-  private readonly appSecret: string;
-  private readonly baseUrl = 'https://openapi.youdao.com/api';
+export class FreeDictionaryService implements DictionaryService {
+  private readonly apiUrl = 'https://api.dictionaryapi.dev/api/v2/entries/en';
   
   // 查询历史记录 (存储在内存中，可以后续扩展到数据库)
   private queryHistory: QueryHistory[] = [];
@@ -54,9 +48,8 @@ export class YoudaoDictionaryService implements DictionaryService {
   private readonly cacheExpireTime = 24 * 60 * 60 * 1000; // 24小时缓存
   private readonly maxCacheSize = 1000; // 最大缓存条目数
   
-  constructor(appKey: string, appSecret: string) {
-    this.appKey = appKey;
-    this.appSecret = appSecret;
+  constructor() {
+    // 免费API，无需配置
   }
 
   /**
@@ -83,11 +76,11 @@ export class YoudaoDictionaryService implements DictionaryService {
     }
 
     try {
-      // 调用有道词典API
-      const apiResponse = await this.callYoudaoApi(normalizedWord);
+      // 调用免费词典API
+      const apiResponse = await this.callFreeDictionaryApi(normalizedWord);
       
       // 解析API响应
-      const wordDefinition = this.parseApiResponse(apiResponse, normalizedWord);
+      const wordDefinition = this.parseFreeDictionaryResponse(apiResponse);
       
       // 缓存结果
       this.cacheResult(normalizedWord, wordDefinition);
@@ -169,36 +162,27 @@ export class YoudaoDictionaryService implements DictionaryService {
   }
 
   /**
-   * 调用有道词典API
+   * 调用免费词典API
    * @param word 要查询的单词
    * @returns API响应
    */
-  private async callYoudaoApi(word: string): Promise<YoudaoApiResponse> {
-    const salt = Date.now().toString();
-    const curtime = Math.round(Date.now() / 1000).toString();
-    
-    // 生成签名
-    const sign = this.generateSign(this.appKey, word, salt, curtime, this.appSecret);
-    
-    const params = new URLSearchParams({
-      q: word,
-      from: 'en',
-      to: 'zh-CHS',
-      appKey: this.appKey,
-      salt,
-      sign,
-      signType: 'v3',
-      curtime
-    });
-
-    const response = await fetch(`${this.baseUrl}?${params.toString()}`, {
+  private async callFreeDictionaryApi(word: string): Promise<FreeDictionaryResponse[]> {
+    const response = await fetch(`${this.apiUrl}/${encodeURIComponent(word)}`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
     });
 
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new AppError({
+          type: ErrorType.API_ERROR,
+          message: `未找到单词 "${word}" 的释义`,
+          details: { status: response.status, word }
+        });
+      }
+      
       throw new AppError({
         type: ErrorType.NETWORK_ERROR,
         message: `网络请求失败: ${response.status} ${response.statusText}`,
@@ -206,15 +190,13 @@ export class YoudaoDictionaryService implements DictionaryService {
       });
     }
 
-    const data: YoudaoApiResponse = await response.json();
+    const data: FreeDictionaryResponse[] = await response.json();
     
-    // 检查API错误码
-    if (data.errorCode !== '0') {
-      const errorMessage = this.getErrorMessage(data.errorCode);
+    if (!data || data.length === 0) {
       throw new AppError({
         type: ErrorType.API_ERROR,
-        message: errorMessage,
-        details: { errorCode: data.errorCode, query: word }
+        message: `未找到单词 "${word}" 的释义`,
+        details: { word }
       });
     }
 
@@ -222,104 +204,51 @@ export class YoudaoDictionaryService implements DictionaryService {
   }
 
   /**
-   * 生成有道API签名
+   * 解析免费词典API响应为标准格式
    */
-  private generateSign(appKey: string, query: string, salt: string, curtime: string, appSecret: string): string {
-    const input = query.length <= 20 ? query : query.substring(0, 10) + query.length + query.substring(query.length - 10);
-    const str = appKey + input + salt + curtime + appSecret;
-    
-    // 使用Web Crypto API生成SHA256哈希
-    return this.sha256(str);
-  }
-
-  /**
-   * SHA256哈希函数
-   */
-  private sha256(str: string): string {
-    return CryptoJS.SHA256(str).toString(CryptoJS.enc.Hex);
-  }
-
-  /**
-   * 解析API响应为标准格式
-   */
-  private parseApiResponse(response: YoudaoApiResponse, word: string): WordDefinition {
+  private parseFreeDictionaryResponse(response: FreeDictionaryResponse[]): WordDefinition {
+    const firstEntry = response[0];
     const definitions: Definition[] = [];
-    
-    // 解析基本释义
-    if (response.basic?.explains) {
-      response.basic.explains.forEach(explain => {
-        // 尝试解析词性和释义
-        const match = explain.match(/^([a-z]+\.)\s*(.+)$/);
-        if (match) {
-          definitions.push({
-            partOfSpeech: match[1],
-            meaning: match[2],
-          });
-        } else {
-          definitions.push({
-            partOfSpeech: '',
-            meaning: explain,
-          });
-        }
-      });
-    }
-
-    // 如果没有基本释义，使用翻译结果
-    if (definitions.length === 0 && response.translation) {
-      definitions.push({
-        partOfSpeech: '',
-        meaning: response.translation.join('; '),
-      });
-    }
-
-    // 收集例句
     const examples: string[] = [];
-    if (response.web) {
-      response.web.forEach(webItem => {
-        if (webItem.value && webItem.value.length > 0) {
-          examples.push(`${webItem.key}: ${webItem.value.join(', ')}`);
+
+    // 提取音标
+    let phonetic = firstEntry.phonetic;
+    if (!phonetic && firstEntry.phonetics.length > 0) {
+      phonetic = firstEntry.phonetics.find(p => p.text)?.text;
+    }
+
+    // 提取发音URL
+    let pronunciation = '';
+    const audioPhonetic = firstEntry.phonetics.find(p => p.audio);
+    if (audioPhonetic?.audio) {
+      pronunciation = audioPhonetic.audio;
+    }
+
+    // 解析释义
+    firstEntry.meanings.forEach(meaning => {
+      meaning.definitions.forEach(def => {
+        // 过滤掉过于简短或不完整的定义
+        if (def.definition && def.definition.length > 10 && !def.definition.startsWith('(of ')) {
+          definitions.push({
+            partOfSpeech: meaning.partOfSpeech,
+            meaning: def.definition,
+          });
+
+          // 收集例句
+          if (def.example) {
+            examples.push(def.example);
+          }
         }
       });
-    }
+    });
 
     return {
-      word: word,
-      phonetic: response.basic?.phonetic || response.basic?.['us-phonetic'] || response.basic?.['uk-phonetic'],
-      pronunciation: response.speakUrl || response.tSpeakUrl,
+      word: firstEntry.word,
+      phonetic,
+      pronunciation,
       definitions,
       examples: examples.slice(0, 3), // 限制例句数量
     };
-  }
-
-  /**
-   * 获取错误信息
-   */
-  private getErrorMessage(errorCode: string): string {
-    const errorMessages: Record<string, string> = {
-      '101': '缺少必填的参数',
-      '102': '不支持的语言类型',
-      '103': '翻译文本过长',
-      '104': '不支持的API类型',
-      '105': '不支持的签名类型',
-      '106': '不支持的响应类型',
-      '107': '不支持的传输加密类型',
-      '108': 'appKey无效',
-      '109': 'batchLog格式不正确',
-      '110': '无相关服务的有效实例',
-      '111': '开发者账号无效',
-      '113': 'q不能为空',
-      '201': '解密失败',
-      '202': '签名检验失败',
-      '203': '访问IP地址不在可访问IP列表',
-      '301': '辞典查询失败',
-      '302': '翻译查询失败',
-      '303': '服务端的其它异常',
-      '401': '账户已经欠费',
-      '411': '访问频率受限',
-      '412': '长请求过于频繁',
-    };
-
-    return errorMessages[errorCode] || `未知错误 (${errorCode})`;
   }
 
   /**
@@ -389,88 +318,9 @@ export class YoudaoDictionaryService implements DictionaryService {
 }
 
 /**
- * 创建有道词典服务实例
- * @param appKey 有道API应用Key
- * @param appSecret 有道API应用密钥
+ * 创建免费词典服务实例
  * @returns 词典服务实例
  */
-export function createYoudaoDictionaryService(appKey: string, appSecret: string): DictionaryService {
-  return new YoudaoDictionaryService(appKey, appSecret);
-}
-
-/**
- * 模拟词典服务 (用于开发和测试)
- */
-export class MockDictionaryService implements DictionaryService {
-  private mockData: Record<string, WordDefinition> = {
-    'hello': {
-      word: 'hello',
-      phonetic: '/həˈloʊ/',
-      pronunciation: '',
-      definitions: [
-        {
-          partOfSpeech: 'int.',
-          meaning: '你好；喂',
-        },
-        {
-          partOfSpeech: 'n.',
-          meaning: '表示问候，惊奇或唤起注意时的用语',
-        }
-      ],
-      examples: [
-        'Hello, how are you? 你好，你好吗？',
-        'Say hello to your parents. 向你的父母问好。'
-      ]
-    },
-    'world': {
-      word: 'world',
-      phonetic: '/wɜːrld/',
-      pronunciation: '',
-      definitions: [
-        {
-          partOfSpeech: 'n.',
-          meaning: '世界；地球；世人；世间',
-        }
-      ],
-      examples: [
-        'The world is beautiful. 世界是美丽的。'
-      ]
-    }
-  };
-
-  async lookupWord(word: string): Promise<WordDefinition> {
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const normalizedWord = word.toLowerCase().trim();
-    const result = this.mockData[normalizedWord];
-    
-    if (!result) {
-      throw new AppError({
-        type: ErrorType.API_ERROR,
-        message: `未找到单词 "${word}" 的释义`,
-        details: { word }
-      });
-    }
-
-    return result;
-  }
-
-  async getWordPronunciation(word: string): Promise<string> {
-    const definition = await this.lookupWord(word);
-    return definition.pronunciation || '';
-  }
-
-  async searchWords(query: string, limit: number = 10): Promise<WordDefinition[]> {
-    if (!query || typeof query !== 'string' || query.trim() === '') {
-      return [];
-    }
-    
-    const normalizedQuery = query.toLowerCase();
-    const results = Object.values(this.mockData)
-      .filter(def => def.word.includes(normalizedQuery))
-      .slice(0, limit);
-    
-    return results;
-  }
+export function createFreeDictionaryService(): DictionaryService {
+  return new FreeDictionaryService();
 }

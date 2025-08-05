@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { BookOpen, Play, Mic, Volume2 } from 'lucide-react';
 import { ContentDisplay } from '@/components/features';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { LearningContent, ContentType } from '@/types';
 
 // 模拟学习内容数据
@@ -66,27 +66,8 @@ export function LearningPage() {
 
   const handleSentencePlay = useCallback((sentence: string) => {
     console.log('播放句子:', sentence);
-    // 这里应该调用TTS服务播放句子
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(sentence);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.8;
-      speechSynthesis.speak(utterance);
-    }
+    // TTS功能现在由PlayButton组件处理
   }, []);
-
-  const handleFullTextPlay = useCallback(() => {
-    if (currentContent) {
-      console.log('播放全文:', currentContent.originalText);
-      // 这里应该调用TTS服务播放全文
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(currentContent.originalText);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.8;
-        speechSynthesis.speak(utterance);
-      }
-    }
-  }, [currentContent]);
 
   const handleBackToSelection = useCallback(() => {
     setCurrentContent(null);
@@ -107,7 +88,6 @@ export function LearningPage() {
             content={currentContent}
             onWordClick={handleWordClick}
             onSentencePlay={handleSentencePlay}
-            onFullTextPlay={handleFullTextPlay}
           />
         </div>
       </div>

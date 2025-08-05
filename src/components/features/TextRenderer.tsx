@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Play } from 'lucide-react';
+import { WordPlayButton, SentencePlayButton } from './PlayButton';
 import { cn } from '@/lib/utils';
 
 interface TextRendererProps {
@@ -135,13 +135,14 @@ export function TextRenderer({
       >
         <div className="flex items-start space-x-2">
           {/* 播放按钮 */}
-          <button
-            onClick={() => handleSentencePlay(sentence.text, index)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity mt-1 p-1 hover:bg-primary/10 rounded"
-            title="播放这句话"
-          >
-            <Play className="h-3 w-3 text-primary" />
-          </button>
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+            <SentencePlayButton
+              text={sentence.text}
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+            />
+          </div>
           
           {/* 句子内容 */}
           <div className="flex-1">
@@ -158,10 +159,16 @@ export function TextRenderer({
                     <span
                       key={wordIndex}
                       onClick={handleWordClick}
-                      className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors"
+                      className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors inline-flex items-center gap-1"
                       title="点击查询单词"
                     >
                       {word}
+                      <WordPlayButton
+                        text={word.replace(/[^\w]/g, '')}
+                        variant="ghost"
+                        size="sm"
+                        className="h-3 w-3 p-0 opacity-0 hover:opacity-100 transition-opacity"
+                      />
                     </span>
                   );
                 }

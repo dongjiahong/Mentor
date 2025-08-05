@@ -3,3 +3,7 @@ export { WordbookPage } from './WordbookPage';
 export { ProgressPage } from './ProgressPage';
 export { SettingsPage } from './SettingsPage';
 export { DictionaryDemoPage } from './DictionaryDemoPage';
+export { DatabaseTestPage } from './DatabaseTestPage';
+export { TTSTestPage } from './TTSTestPage';
+export { VoiceRecorderTestPage } from './VoiceRecorderTestPage';
+export { STTDebugPage } from './STTDebugPage';

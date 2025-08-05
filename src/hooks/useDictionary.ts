@@ -58,27 +58,24 @@ export function useDictionary() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const config = DictionaryConfigManager.getConfig();
-      const isConfigured = DictionaryConfigManager.isConfigured();
+      let config = DictionaryConfigManager.getConfig();
+      let isConfigured = DictionaryConfigManager.isConfigured();
 
-      if (isConfigured && config) {
-        const service = await DictionaryServiceFactory.createService(config);
-        setState({
-          service,
-          config,
-          isConfigured: true,
-          isLoading: false,
-          error: null,
-        });
-      } else {
-        setState({
-          service: null,
-          config,
-          isConfigured: false,
-          isLoading: false,
-          error: null,
-        });
+      // 如果没有配置，自动创建默认的模拟服务配置
+      if (!config || !isConfigured) {
+        const defaultConfig = DictionaryConfigManager.getDefaultConfig();
+        config = DictionaryConfigManager.saveConfig(defaultConfig);
+        isConfigured = true;
       }
+
+      const service = await DictionaryServiceFactory.createService(config);
+      setState({
+        service,
+        config,
+        isConfigured: true,
+        isLoading: false,
+        error: null,
+      });
     } catch (error) {
       console.error('初始化词典服务失败:', error);
       setState({
