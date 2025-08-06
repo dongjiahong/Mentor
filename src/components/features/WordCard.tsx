@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Play, 
-  Volume2, 
-  Edit3, 
-  Trash2, 
+import {
+  Play,
+  Volume2,
+  Edit3,
+  Trash2,
   Clock,
   Mic,
   Eye,
@@ -13,14 +13,14 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -46,9 +46,9 @@ interface WordCardProps {
 }
 
 // 添加原因的显示配置
-const ADD_REASON_CONFIG: Record<WordAddReason, { 
-  label: string; 
-  icon: React.ReactNode; 
+const ADD_REASON_CONFIG: Record<WordAddReason, {
+  label: string;
+  icon: React.ReactNode;
   color: string;
 }> = {
   'translation_lookup': {
@@ -68,8 +68,8 @@ const ADD_REASON_CONFIG: Record<WordAddReason, {
   }
 };
 
-export function WordCard({ 
-  word, 
+export function WordCard({
+  word,
   onProficiencyUpdate,
   onRemove,
   onEdit,
@@ -82,7 +82,7 @@ export function WordCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editDefinition, setEditDefinition] = useState(word.definition);
   const [editPronunciation, setEditPronunciation] = useState(word.pronunciation || '');
-  
+
   const { speak } = useSpeech();
 
   // 计算熟练度百分比
@@ -99,9 +99,9 @@ export function WordCard({
   const formatDate = (date?: Date) => {
     if (!date) return '未设置';
     const d = new Date(date);
-    return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -134,7 +134,7 @@ export function WordCard({
       if (editPronunciation !== word.pronunciation) {
         updates.pronunciation = editPronunciation;
       }
-      
+
       if (Object.keys(updates).length > 0) {
         onEdit(word.id, updates);
       }
@@ -159,9 +159,8 @@ export function WordCard({
 
   return (
     <>
-      <Card className={`transition-all duration-200 hover:shadow-md ${
-        isSelected ? 'ring-2 ring-primary' : ''
-      }`}>
+      <Card className={`transition-all duration-200 hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''
+        }`}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-start space-x-3 flex-1">
@@ -173,7 +172,7 @@ export function WordCard({
                   className="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                 />
               )}
-              
+
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
                   <h3 className="text-lg font-semibold text-foreground">
@@ -193,16 +192,16 @@ export function WordCard({
                     </span>
                   )}
                 </div>
-                
+
                 <div className="flex items-center space-x-2 mb-2">
-                  <Badge 
-                    variant="secondary" 
+                  <Badge
+                    variant="secondary"
                     className={`text-xs ${reasonConfig.color}`}
                   >
                     {reasonConfig.icon}
                     <span className="ml-1">{reasonConfig.label}</span>
                   </Badge>
-                  
+
                   {needsReview && (
                     <Badge variant="outline" className="text-xs">
                       <Clock className="h-3 w-3 mr-1" />
@@ -212,7 +211,7 @@ export function WordCard({
                 </div>
               </div>
             </div>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -229,7 +228,7 @@ export function WordCard({
                   播放发音
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => setShowDeleteDialog(true)}
                   className="text-destructive"
                 >
@@ -240,15 +239,17 @@ export function WordCard({
             </DropdownMenu>
           </div>
         </CardHeader>
-        
+
         <CardContent className="pt-0">
           <div className="space-y-4">
             {/* 单词释义 */}
             <div>
               <p className="text-sm text-muted-foreground mb-1">释义</p>
-              <p className="text-sm text-foreground">{word.definition}</p>
+              <div className="max-h-20 overflow-y-auto scrollbar-thin">
+                <p className="text-sm text-foreground pr-2">{word.definition}</p>
+              </div>
             </div>
-            
+
             {/* 熟练度 */}
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -260,7 +261,7 @@ export function WordCard({
                 </span>
               </div>
               <Progress value={proficiencyPercentage} className="h-2" />
-              
+
               {/* 熟练度快速调整按钮 */}
               <div className="flex items-center space-x-1 mt-2">
                 {[0, 1, 2, 3, 4, 5].map((level) => (
@@ -276,7 +277,7 @@ export function WordCard({
                 ))}
               </div>
             </div>
-            
+
             {/* 学习统计 */}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>复习次数: {word.reviewCount}</span>
@@ -295,7 +296,7 @@ export function WordCard({
               修改单词的释义和发音信息
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
               <Label htmlFor="word">单词</Label>
@@ -306,7 +307,7 @@ export function WordCard({
                 className="bg-muted"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="definition">释义</Label>
               <Textarea
@@ -317,7 +318,7 @@ export function WordCard({
                 rows={3}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="pronunciation">发音</Label>
               <Input
@@ -328,7 +329,7 @@ export function WordCard({
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               取消
@@ -349,7 +350,7 @@ export function WordCard({
               确定要删除单词 "{word.word}" 吗？此操作无法撤销。
             </DialogDescription>
           </DialogHeader>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               取消
