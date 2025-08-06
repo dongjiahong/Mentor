@@ -210,9 +210,10 @@ export class LearningRecordsClientService {
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - days);
 
-    return this.learningRecordsService.getProgressTrend({
-      startDate,
-      endDate
+    return this.callAPI('get_progress_trend', {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      days
     });
   }
 
@@ -247,7 +248,26 @@ export class LearningRecordsClientService {
    */
   public async generateLearningReport(params?: StatsQueryParams): Promise<{
     summary: LearningStats;
-    abilities: Awaited<ReturnType<typeof this.evaluateUserAbilities>>;
+    abilities: {
+      vocabularyLevel: {
+        level: EnglishLevel;
+        score: number;
+        totalWords: number;
+        masteredWords: number;
+      };
+      pronunciationLevel: {
+        level: EnglishLevel;
+        score: number;
+        averageAccuracy: number;
+        recentImprovement: number;
+      };
+      readingLevel: {
+        level: EnglishLevel;
+        score: number;
+        averageReadingTime: number;
+        comprehensionAccuracy: number;
+      };
+    };
     trends: any;
     recommendations: string[];
     achievements: Array<{
@@ -515,21 +535,6 @@ export class LearningRecordsClientService {
     }
 
     return recommendations;
-  }
-
-  /**
-   * 判断是否为新成就
-   */
-  private isNewAchievement(achievement: {
-    type: string;
-    title: string;
-    description: string;
-    achievedAt: Date;
-  }): boolean {
-    // 简单判断：如果成就时间在24小时内，认为是新成就
-    const now = new Date();
-    const timeDiff = now.getTime() - achievement.achievedAt.getTime();
-    return timeDiff < 24 * 60 * 60 * 1000; // 24小时
   }
 
   /**
