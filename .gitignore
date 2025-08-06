@@ -10,7 +10,7 @@ lerna-debug.log*
 yarn.lock
 *.test.ts
 *.test.tsx
-test*.ts*
+test_*.ts*
 
 node_modules
 dist
