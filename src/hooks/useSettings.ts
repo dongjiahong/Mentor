@@ -26,6 +26,8 @@ interface SettingsFormData {
   apiUrl: string;
   apiKey: string;
   modelName: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 export function useSettings() {
@@ -40,9 +42,11 @@ export function useSettings() {
   const [formData, setFormData] = useState<SettingsFormData>({
     englishLevel: 'A1',
     learningGoal: 'daily_conversation',
-    apiUrl: 'https://api-inference.modelscope.cn/v1/',
-    apiKey: '',
-    modelName: 'Qwen/Qwen3-235B-A22B-Instruct-2507'
+    apiUrl: process.env.OPENAI_BASE_URL || 'https://api-inference.modelscope.cn/v1/',
+    apiKey: process.env.OPENAI_API_KEY || '',
+    modelName: process.env.OPEHAI_MODEL || 'Qwen/Qwen3-235B-A22B-Instruct-2507',
+    temperature: 0.7,
+    maxTokens: 2000
   });
 
   const storageService = new StorageService();
@@ -73,7 +77,9 @@ export function useSettings() {
           learningGoal: userProfile?.learningGoal || 'daily_conversation',
           apiUrl: aiConfig?.apiUrl || 'https://api-inference.modelscope.cn/v1/',
           apiKey: aiConfig?.apiKey || '',
-          modelName: aiConfig?.modelName || 'Qwen/Qwen3-235B-A22B-Instruct-2507'
+          modelName: aiConfig?.modelName || 'Qwen/Qwen3-235B-A22B-Instruct-2507',
+          temperature: aiConfig?.temperature || 0.7,
+          maxTokens: aiConfig?.maxTokens || 2000
         });
       }
     } catch (error) {
@@ -119,7 +125,9 @@ export function useSettings() {
       const aiConfig = await storageService.saveAIConfig({
         apiUrl: formData.apiUrl,
         apiKey: formData.apiKey,
-        modelName: formData.modelName
+        modelName: formData.modelName,
+        temperature: formData.temperature,
+        maxTokens: formData.maxTokens
       });
 
       // 保存到持久化存储
@@ -165,6 +173,8 @@ export function useSettings() {
         apiUrl: formData.apiUrl,
         apiKey: formData.apiKey,
         modelName: formData.modelName,
+        temperature: formData.temperature,
+        maxTokens: formData.maxTokens,
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -238,7 +248,9 @@ export function useSettings() {
         learningGoal: state.userProfile?.learningGoal || 'daily_conversation',
         apiUrl: state.aiConfig?.apiUrl || 'https://api-inference.modelscope.cn/v1/',
         apiKey: state.aiConfig?.apiKey || '',
-        modelName: state.aiConfig?.modelName || 'Qwen/Qwen3-235B-A22B-Instruct-2507'
+        modelName: state.aiConfig?.modelName || 'Qwen/Qwen3-235B-A22B-Instruct-2507',
+        temperature: state.aiConfig?.temperature || 0.7,
+        maxTokens: state.aiConfig?.maxTokens || 2000
       });
     }
     setState(prev => ({ ...prev, hasUnsavedChanges: false }));

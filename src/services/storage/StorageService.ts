@@ -325,8 +325,8 @@ export class StorageService {
       if (existing) {
         // 更新现有配置
         this.dbConnection.run(
-          'UPDATE ai_config SET api_url = ?, api_key = ?, model_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          [config.apiUrl, config.apiKey, config.modelName, existing.id]
+          'UPDATE ai_config SET api_url = ?, api_key = ?, model_name = ?, temperature = ?, max_tokens = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [config.apiUrl, config.apiKey, config.modelName, config.temperature || 0.7, config.maxTokens || 2000, existing.id]
         );
         
         return {
@@ -337,8 +337,8 @@ export class StorageService {
       } else {
         // 创建新配置
         this.dbConnection.run(
-          'INSERT INTO ai_config (api_url, api_key, model_name) VALUES (?, ?, ?)',
-          [config.apiUrl, config.apiKey, config.modelName]
+          'INSERT INTO ai_config (api_url, api_key, model_name, temperature, max_tokens) VALUES (?, ?, ?, ?, ?)',
+          [config.apiUrl, config.apiKey, config.modelName, config.temperature || 0.7, config.maxTokens || 2000]
         );
         
         const newConfig = await this.getAIConfig();
@@ -375,6 +375,8 @@ export class StorageService {
         apiUrl: row.api_url as string,
         apiKey: row.api_key as string,
         modelName: row.model_name as string,
+        temperature: row.temperature as number,
+        maxTokens: row.max_tokens as number,
         createdAt: new Date(row.created_at as string),
         updatedAt: new Date(row.updated_at as string)
       };

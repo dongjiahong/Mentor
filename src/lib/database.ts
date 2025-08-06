@@ -31,6 +31,9 @@ export function getDatabase(): Database.Database {
 
 function initializeDatabase(database: Database.Database) {
   try {
+    // 先执行数据库结构升级
+    upgradeDatabase(database)
+    
     // 创建表
     const tables = Object.values(DATABASE_SCHEMA)
     for (const tableSQL of tables) {
@@ -51,6 +54,30 @@ function initializeDatabase(database: Database.Database) {
   } catch (error) {
     console.error('数据库初始化失败:', error)
     throw error
+  }
+}
+
+function upgradeDatabase(database: Database.Database) {
+  try {
+    // 检查ai_config表是否存在temperature列
+    const tableInfo = database.pragma('table_info(ai_config)')
+    const columns = tableInfo.map((col: any) => col.name)
+    
+    if (tableInfo.length > 0 && !columns.includes('temperature')) {
+      console.log('检测到旧版ai_config表，开始升级...')
+      
+      // 添加缺失的列
+      database.exec('ALTER TABLE ai_config ADD COLUMN temperature REAL DEFAULT 0.7')
+      database.exec('ALTER TABLE ai_config ADD COLUMN max_tokens INTEGER DEFAULT 2000')
+      
+      console.log('ai_config表升级完成')
+    }
+  } catch (error) {
+    console.error('数据库升级失败:', error)
+    // 如果是表不存在的错误，可以忽略，因为后续会创建新表
+    if (!error.message.includes('no such table')) {
+      throw error
+    }
   }
 }
 

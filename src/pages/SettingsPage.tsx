@@ -207,13 +207,60 @@ export function SettingsPage() {
             </FormField>
 
             <FormField label="模型名称" required>
-              <SelectWithOptions
-                options={modelOptions}
-                value={formData.modelName}
-                onChange={(value) => updateFormData({ modelName: value })}
-                placeholder="请选择模型"
-              />
+              <div className="space-y-2">
+                <SelectWithOptions
+                  options={[...modelOptions, { value: 'custom', label: '自定义模型...' }]}
+                  value={modelOptions.find(opt => opt.value === formData.modelName) ? formData.modelName : 'custom'}
+                  onChange={(value) => {
+                    if (value !== 'custom') {
+                      updateFormData({ modelName: value })
+                    }
+                  }}
+                  placeholder="请选择模型"
+                />
+                {(!modelOptions.find(opt => opt.value === formData.modelName) || 
+                  modelOptions.find(opt => opt.value === formData.modelName)?.value === 'custom') && (
+                  <Input
+                    type="text"
+                    value={formData.modelName}
+                    onChange={(e) => updateFormData({ modelName: e.target.value })}
+                    placeholder="输入自定义模型名称，如：Qwen/Qwen3-235B-A22B-Instruct-2507"
+                    className="mt-2"
+                  />
+                )}
+              </div>
             </FormField>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField label="Temperature (0-2)" required>
+                <Input
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={formData.temperature || 0.7}
+                  onChange={(e) => updateFormData({ temperature: parseFloat(e.target.value) || 0.7 })}
+                  placeholder="0.7"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  控制输出的随机性，0为确定性输出，2为高随机性
+                </p>
+              </FormField>
+
+              <FormField label="最大令牌数" required>
+                <Input
+                  type="number"
+                  min="1"
+                  max="8000"
+                  value={formData.maxTokens || 2000}
+                  onChange={(e) => updateFormData({ maxTokens: parseInt(e.target.value) || 2000 })}
+                  placeholder="2000"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  单次请求的最大输出长度
+                </p>
+              </FormField>
+            </div>
 
             <div className="flex justify-start">
               <LoadingButton

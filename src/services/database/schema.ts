@@ -21,6 +21,8 @@ export const DATABASE_SCHEMA = {
       api_url TEXT NOT NULL,
       api_key TEXT NOT NULL,
       model_name TEXT NOT NULL,
+      temperature REAL DEFAULT 0.7,
+      max_tokens INTEGER DEFAULT 2000,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -30,11 +32,13 @@ export const DATABASE_SCHEMA = {
   LEARNING_CONTENT: `
     CREATE TABLE IF NOT EXISTS learning_content (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content_type TEXT NOT NULL CHECK (content_type IN ('dialogue', 'article')),
+      content_type TEXT NOT NULL CHECK (content_type IN ('dialogue', 'article', 'mixed')),
       original_text TEXT NOT NULL,
       translation TEXT NOT NULL,
       difficulty_level TEXT NOT NULL,
       topic TEXT,
+      word_count INTEGER,
+      estimated_reading_time INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `,

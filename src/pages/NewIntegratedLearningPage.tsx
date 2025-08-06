@@ -11,7 +11,9 @@ import {
   Headphones,
   Mic,
   BookOpen,
-  PenTool
+  PenTool,
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -193,6 +195,16 @@ export function NewIntegratedLearningPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => window.location.href = '/ai-generator'}
+            className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 hover:border-purple-300"
+          >
+            <Bot className="h-4 w-4 mr-2 text-purple-600" />
+            <Sparkles className="h-3 w-3 mr-1 text-yellow-500" />
+            AI 生成器
+          </Button>
           <Button variant="outline" size="sm">
             <BarChart3 className="h-4 w-4 mr-2" />
             学习报告
