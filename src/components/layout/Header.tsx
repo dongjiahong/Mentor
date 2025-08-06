@@ -1,5 +1,8 @@
+'use client'
+
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu, X, BookOpen, Settings, BarChart3, FileText, Sun, Moon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -17,14 +20,14 @@ const navigation = [
 
 export function Header({ onThemeToggle, isDarkMode }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const location = useLocation();
+  const pathname = usePathname();
 
   return (
     <header className="bg-background border-b border-border sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2">
             <BookOpen className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold text-foreground">英语学习助手</span>
           </Link>
@@ -33,11 +36,11 @@ export function Header({ onThemeToggle, isDarkMode }: HeaderProps) {
           <nav className="hidden md:flex items-center space-x-8">
             {navigation.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.href;
+              const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
-                  to={item.href}
+                  href={item.href}
                   className={cn(
                     'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
                     isActive
@@ -78,11 +81,11 @@ export function Header({ onThemeToggle, isDarkMode }: HeaderProps) {
             <nav className="flex flex-col space-y-2">
               {navigation.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.href;
+                const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.name}
-                    to={item.href}
+                    href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={cn(
                       'flex items-center space-x-3 px-3 py-3 rounded-md text-sm font-medium transition-colors',

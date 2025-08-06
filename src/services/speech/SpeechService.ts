@@ -51,6 +51,14 @@ export class WebSpeechService implements ISpeechService {
   private playbackEvents: SpeechPlaybackEvents = {};
 
   constructor() {
+    // 检查是否在浏览器环境中
+    if (typeof window === 'undefined') {
+      // 在服务端环境中，不初始化语音功能
+      this.synthesis = null as any;
+      this.recognition = null;
+      return;
+    }
+
     this.synthesis = window.speechSynthesis;
     
     // 初始化语音识别
@@ -65,6 +73,7 @@ export class WebSpeechService implements ISpeechService {
    * 检查是否为 Chrome 浏览器
    */
   private isChrome(): boolean {
+    if (typeof navigator === 'undefined') return false;
     return /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent);
   }
 
@@ -73,6 +82,11 @@ export class WebSpeechService implements ISpeechService {
    */
   private waitForVoices(): Promise<SpeechSynthesisVoice[]> {
     return new Promise((resolve) => {
+      if (!this.synthesis) {
+        resolve([]);
+        return;
+      }
+
       const voices = this.synthesis.getVoices();
       
       if (voices.length > 0) {
@@ -82,6 +96,10 @@ export class WebSpeechService implements ISpeechService {
 
       // 等待语音加载事件
       const handleVoicesChanged = () => {
+        if (!this.synthesis) {
+          resolve([]);
+          return;
+        }
         const loadedVoices = this.synthesis.getVoices();
         if (loadedVoices.length > 0) {
           this.synthesis.removeEventListener('voiceschanged', handleVoicesChanged);
@@ -93,8 +111,12 @@ export class WebSpeechService implements ISpeechService {
       
       // 超时保护
       setTimeout(() => {
-        this.synthesis.removeEventListener('voiceschanged', handleVoicesChanged);
-        resolve(this.synthesis.getVoices());
+        if (this.synthesis) {
+          this.synthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+          resolve(this.synthesis.getVoices());
+        } else {
+          resolve([]);
+        }
       }, 3000);
     });
   }
@@ -103,7 +125,7 @@ export class WebSpeechService implements ISpeechService {
    * 检查浏览器是否支持语音功能
    */
   isSupported(): boolean {
-    return 'speechSynthesis' in window;
+    return typeof window !== 'undefined' && 'speechSynthesis' in window;
   }
 
   /**
@@ -117,6 +139,7 @@ export class WebSpeechService implements ISpeechService {
    * 获取支持的语音列表
    */
   getSupportedVoices(): SpeechSynthesisVoice[] {
+    if (!this.synthesis) return [];
     return this.synthesis.getVoices();
   }
 
@@ -163,7 +186,7 @@ export class WebSpeechService implements ISpeechService {
     }
 
     // Chrome 需要清理之前的语音队列
-    if (this.synthesis.speaking || this.synthesis.pending) {
+    if (this.synthesis && (this.synthesis.speaking || this.synthesis.pending)) {
       this.synthesis.cancel();
       // 等待一小段时间确保清理完成
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -293,12 +316,14 @@ export class WebSpeechService implements ISpeechService {
         
         // Chrome 特殊处理：确保在用户交互后播放
         console.log('开始播放 TTS:', text.substring(0, 50) + '...');
-        this.synthesis.speak(utterance);
+        if (this.synthesis) {
+          this.synthesis.speak(utterance);
+        }
         
         // Chrome 的一个已知问题：有时需要手动触发
-        if (this.isChrome() && !this.synthesis.speaking) {
+        if (this.synthesis && this.isChrome() && !this.synthesis.speaking) {
           setTimeout(() => {
-            if (!this.synthesis.speaking && this.currentUtterance === utterance) {
+            if (this.synthesis && !this.synthesis.speaking && this.currentUtterance === utterance) {
               console.log('Chrome TTS 未开始，尝试重新播放');
               this.synthesis.speak(utterance);
             }
@@ -315,7 +340,7 @@ export class WebSpeechService implements ISpeechService {
    * 暂停语音播放
    */
   pauseSpeech(): void {
-    if (this.synthesis.speaking && !this.synthesis.paused) {
+    if (this.synthesis && this.synthesis.speaking && !this.synthesis.paused) {
       this.synthesis.pause();
     }
   }
@@ -324,7 +349,7 @@ export class WebSpeechService implements ISpeechService {
    * 恢复语音播放
    */
   resumeSpeech(): void {
-    if (this.synthesis.paused) {
+    if (this.synthesis && this.synthesis.paused) {
       this.synthesis.resume();
     }
   }
@@ -333,7 +358,7 @@ export class WebSpeechService implements ISpeechService {
    * 停止语音播放
    */
   stopSpeech(): void {
-    if (this.synthesis.speaking) {
+    if (this.synthesis && this.synthesis.speaking) {
       this.synthesis.cancel();
       this.playbackState = {
         isPlaying: false,
@@ -475,8 +500,22 @@ export class WebSpeechService implements ISpeechService {
   }
 }
 
-// 创建默认的语音服务实例
-export const defaultSpeechService = new WebSpeechService();
+// 延迟创建默认的语音服务实例
+let _defaultSpeechService: WebSpeechService | null = null;
+
+export function getDefaultSpeechService(): WebSpeechService {
+  if (!_defaultSpeechService) {
+    _defaultSpeechService = new WebSpeechService();
+  }
+  return _defaultSpeechService;
+}
+
+// 保持向后兼容，但使用懒加载
+export const defaultSpeechService = new Proxy({} as WebSpeechService, {
+  get(target, prop) {
+    return (getDefaultSpeechService() as any)[prop];
+  }
+});
 
 // 工厂函数
 export function createSpeechService(): WebSpeechService {

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -212,7 +212,7 @@ export function DevNavigationPage() {
                     <code className="text-xs bg-muted px-2 py-1 rounded">
                       {page.path}
                     </code>
-                    <Link to={page.path}>
+                    <Link href={page.path}>
                       <Button size="sm" className="gap-1">
                         访问
                         <ExternalLink className="h-3 w-3" />
@@ -260,7 +260,7 @@ export function DevNavigationPage() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {pages.filter(p => p.status === 'stable' || p.status === 'beta').map((page) => (
-              <Link key={page.path} to={page.path}>
+              <Link key={page.path} href={page.path}>
                 <Button variant="outline" size="sm" className="w-full justify-start gap-2">
                   {page.icon}
                   {page.title}

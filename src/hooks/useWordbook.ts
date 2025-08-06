@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { WordbookService } from '@/services/wordbook/WordbookService';
+import { WordbookClientService } from '@/services/wordbook/WordbookClientService';
 import { 
   Word, 
   WordAddReason, 
@@ -58,7 +58,7 @@ interface UseWordbookReturn {
  * 提供单词本相关的状态管理和操作方法
  */
 export function useWordbook(): UseWordbookReturn {
-  const [wordbookService] = useState(() => new WordbookService());
+  const [wordbookService] = useState(() => new WordbookClientService());
   const [words, setWords] = useState<Word[]>([]);
   const [reviewWords, setReviewWords] = useState<Word[]>([]);
   const [stats, setStats] = useState<WordbookStats | null>(null);
@@ -94,22 +94,8 @@ export function useWordbook(): UseWordbookReturn {
     let isMounted = true;
     
     const initService = async () => {
-      try {
-        setLoading(true);
-        await wordbookService.initialize();
-        
-        if (isMounted) {
-          await loadInitialData();
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(new AppError({
-            type: ErrorType.DATABASE_ERROR,
-            message: '初始化单词本服务失败',
-            details: err
-          }));
-          setLoading(false);
-        }
+      if (isMounted) {
+        await loadInitialData();
       }
     };
 
@@ -118,7 +104,7 @@ export function useWordbook(): UseWordbookReturn {
     return () => {
       isMounted = false;
     };
-  }, [wordbookService, loadInitialData]);
+  }, [loadInitialData]);
 
   // 清除错误
   const clearError = useCallback(() => {
@@ -200,43 +186,59 @@ export function useWordbook(): UseWordbookReturn {
     timeSpent?: number
   ): Promise<Word | null> => {
     return withErrorHandling(async () => {
-      const updatedWord = await wordbookService.updateWordProficiency(wordId, accuracyScore, timeSpent);
-      
-      // 更新本地状态
-      setWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
-      setReviewWords(prev => {
-        const filtered = prev.filter(w => w.id !== wordId);
-        // 如果还需要复习，保留在复习列表中
-        if (updatedWord.nextReviewAt && new Date(updatedWord.nextReviewAt) <= new Date()) {
-          return [updatedWord, ...filtered];
-        }
-        return filtered;
-      });
+      // 获取当前单词信息来计算新的熟练度
+      const currentWord = words.find(w => w.id === wordId);
+      if (!currentWord) {
+        throw new Error('未找到单词');
+      }
 
-      // 更新统计信息
-      await loadStats();
+      // 简单的熟练度计算逻辑
+      let newProficiencyLevel = currentWord.proficiencyLevel;
+      if (accuracyScore >= 0.8) {
+        newProficiencyLevel = Math.min(5, currentWord.proficiencyLevel + 1);
+      } else if (accuracyScore < 0.5) {
+        newProficiencyLevel = Math.max(0, currentWord.proficiencyLevel - 1);
+      }
+
+      await wordbookService.updateWordProficiency(
+        wordId,
+        newProficiencyLevel,
+        currentWord.reviewCount + 1,
+        new Date().toISOString(),
+        new Date(Date.now() + (newProficiencyLevel + 1) * 24 * 60 * 60 * 1000).toISOString()
+      );
       
-      return updatedWord;
+      // 重新加载数据
+      await loadInitialData();
+      
+      return words.find(w => w.id === wordId) || null;
     }, '更新单词熟练度失败');
-  }, [wordbookService, withErrorHandling]);
+  }, [wordbookService, withErrorHandling, words, loadInitialData]);
 
   const setWordProficiency = useCallback(async (
     wordId: number,
     proficiencyLevel: number
   ): Promise<Word | null> => {
     return withErrorHandling(async () => {
-      const updatedWord = await wordbookService.setWordProficiency(wordId, proficiencyLevel);
-      
-      // 更新本地状态
-      setWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
-      setReviewWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
+      const currentWord = words.find(w => w.id === wordId);
+      if (!currentWord) {
+        throw new Error('未找到单词');
+      }
 
-      // 更新统计信息
-      await loadStats();
+      await wordbookService.updateWordProficiency(
+        wordId,
+        proficiencyLevel,
+        currentWord.reviewCount,
+        currentWord.lastReviewAt,
+        new Date(Date.now() + (proficiencyLevel + 1) * 24 * 60 * 60 * 1000).toISOString()
+      );
       
-      return updatedWord;
+      // 重新加载数据
+      await loadInitialData();
+      
+      return words.find(w => w.id === wordId) || null;
     }, '设置单词熟练度失败');
-  }, [wordbookService, withErrorHandling]);
+  }, [wordbookService, withErrorHandling, words, loadInitialData]);
 
   const markWordAsMastered = useCallback(async (wordId: number): Promise<Word | null> => {
     return setWordProficiency(wordId, 5);
@@ -269,30 +271,22 @@ export function useWordbook(): UseWordbookReturn {
     definition: string
   ): Promise<Word | null> => {
     return withErrorHandling(async () => {
-      const updatedWord = await wordbookService.updateWordDefinition(wordId, definition);
-      
-      // 更新本地状态
-      setWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
-      setReviewWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
-      
-      return updatedWord;
+      // 客户端服务暂时不支持单独更新定义，需要通过重新添加或API扩展来实现
+      console.log('更新单词定义功能待实现:', wordId, definition);
+      return null;
     }, '更新单词定义失败');
-  }, [wordbookService, withErrorHandling]);
+  }, [withErrorHandling]);
 
   const updateWordPronunciation = useCallback(async (
     wordId: number,
     pronunciation: string
   ): Promise<Word | null> => {
     return withErrorHandling(async () => {
-      const updatedWord = await wordbookService.updateWordPronunciation(wordId, pronunciation);
-      
-      // 更新本地状态
-      setWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
-      setReviewWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
-      
-      return updatedWord;
+      // 客户端服务暂时不支持单独更新发音，需要通过重新添加或API扩展来实现
+      console.log('更新单词发音功能待实现:', wordId, pronunciation);
+      return null;
     }, '更新单词发音失败');
-  }, [wordbookService, withErrorHandling]);
+  }, [withErrorHandling]);
 
   // ==================== 查询方法 ====================
 
@@ -335,7 +329,9 @@ export function useWordbook(): UseWordbookReturn {
 
   const getRecommendedReviewWords = useCallback(async (limit: number = 20): Promise<Word[]> => {
     const result = await withErrorHandling(async () => {
-      return await wordbookService.getRecommendedReviewWords(limit);
+      // 使用需要复习的单词作为推荐复习单词
+      const reviewWords = await wordbookService.getWordsForReview();
+      return reviewWords.slice(0, limit);
     }, '获取推荐复习单词失败');
     
     return result || [];
@@ -346,30 +342,27 @@ export function useWordbook(): UseWordbookReturn {
     accuracyScores: number[]
   ): Promise<Word[]> => {
     const result = await withErrorHandling(async () => {
-      const updatedWords = await wordbookService.batchUpdateReviewStatus(wordIds, accuracyScores);
+      const updatedWords: Word[] = [];
       
-      // 更新本地状态
-      setWords(prev => prev.map(word => {
-        const updated = updatedWords.find(w => w.id === word.id);
-        return updated || word;
-      }));
-
-      // 更新复习列表
-      await loadReviewWords();
-      
-      // 更新统计信息
-      await loadStats();
+      // 逐个更新单词状态
+      for (let i = 0; i < wordIds.length; i++) {
+        await updateWordProficiency(wordIds[i], accuracyScores[i]);
+        const updatedWord = words.find(w => w.id === wordIds[i]);
+        if (updatedWord) {
+          updatedWords.push(updatedWord);
+        }
+      }
       
       return updatedWords;
     }, '批量更新复习状态失败');
     
     return result || [];
-  }, [withErrorHandling, wordbookService, loadReviewWords, loadStats]);
+  }, [withErrorHandling, updateWordProficiency, words]);
 
   // 获取今日复习队列
   const getTodayReviewQueue = useCallback(async (): Promise<Word[]> => {
     const result = await withErrorHandling(async () => {
-      return await wordbookService.getTodayReviewQueue();
+      return await wordbookService.getWordsForReview();
     }, '获取今日复习队列失败');
     
     return result || [];

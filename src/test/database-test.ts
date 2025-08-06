@@ -1,4 +1,4 @@
-import { DatabaseConnection } from '../services/database/connection';
+// import { DatabaseConnection } from '../services/database/connection'; // 已迁移到服务端
 import { StorageService } from '../services/storage/StorageService';
 
 // 测试数据库初始化和基本操作

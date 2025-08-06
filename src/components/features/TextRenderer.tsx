@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { WordPlayButton, SentencePlayButton } from './PlayButton';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,7 @@ export function TextRenderer({
   className
 }: TextRendererProps) {
   const [highlightedSentence, setHighlightedSentence] = useState<number | null>(null);
+  const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 将文本分割成句子
   const sentences = useMemo(() => {
@@ -110,14 +111,29 @@ export function TextRenderer({
   }, [onWordClick]);
 
   const handleSentencePlay = useCallback((sentence: string, index: number) => {
+    // 清除之前的定时器
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+    }
+    
     setHighlightedSentence(index);
     onSentencePlay?.(sentence);
     
     // 3秒后取消高亮
-    setTimeout(() => {
+    highlightTimerRef.current = setTimeout(() => {
       setHighlightedSentence(null);
+      highlightTimerRef.current = null;
     }, 3000);
   }, [onSentencePlay]);
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+      }
+    };
+  }, []);
 
   const renderSentence = useCallback((sentence: Sentence, index: number) => {
     const isHighlighted = highlightedSentence === index;

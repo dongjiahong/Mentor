@@ -88,13 +88,21 @@ export function WordCard({
   // 计算熟练度百分比
   const proficiencyPercentage = (word.proficiencyLevel / 5) * 100;
 
-  // 获取添加原因配置
-  const reasonConfig = ADD_REASON_CONFIG[word.addReason];
+  // 获取添加原因配置，提供默认值
+  const reasonConfig = ADD_REASON_CONFIG[word.addReason] || {
+    label: '其他',
+    icon: <Eye className="h-3 w-3" />,
+    color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+  };
 
-  // 格式化日期
+  // 格式化日期时间
   const formatDate = (date?: Date) => {
     if (!date) return '未设置';
-    return new Date(date).toLocaleDateString('zh-CN');
+    const d = new Date(date);
+    return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
 
   // 计算是否需要复习
@@ -245,7 +253,7 @@ export function WordCard({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-muted-foreground">
-                  熟练度: {PROFICIENCY_LEVELS[word.proficiencyLevel as keyof typeof PROFICIENCY_LEVELS]}
+                  熟练度: {PROFICIENCY_LEVELS[word.proficiencyLevel as keyof typeof PROFICIENCY_LEVELS] || '未知等级'}
                 </p>
                 <span className="text-xs text-muted-foreground">
                   {word.proficiencyLevel}/5

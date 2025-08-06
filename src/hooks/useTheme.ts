@@ -3,14 +3,22 @@ import { useState, useEffect } from 'react';
 type Theme = 'light' | 'dark' | 'system';
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem('theme') as Theme;
-    return stored || 'system';
-  });
-
+  const [theme, setTheme] = useState<Theme>('system');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
+  // 在客户端挂载后从 localStorage 读取主题设置
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('theme') as Theme;
+      if (stored) {
+        setTheme(stored);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const root = window.document.documentElement;
     
     const applyTheme = (isDark: boolean) => {
@@ -36,7 +44,9 @@ export function useTheme() {
 
   const setThemeMode = (newTheme: Theme) => {
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', newTheme);
+    }
   };
 
   const toggleTheme = () => {

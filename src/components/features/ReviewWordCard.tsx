@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Play, 
   Eye, 
@@ -17,6 +17,7 @@ interface ReviewWordCardProps {
   word: Word;
   onReviewResult: (wordId: number, result: 'unknown' | 'familiar' | 'known') => void;
   onPlay?: (text: string) => void;
+  isReviewed?: boolean;
 }
 
 // 添加原因的显示配置
@@ -45,15 +46,24 @@ const ADD_REASON_CONFIG: Record<WordAddReason, {
 export function ReviewWordCard({ 
   word, 
   onReviewResult,
-  onPlay
+  onPlay,
+  isReviewed = false
 }: ReviewWordCardProps) {
   const [showDefinition, setShowDefinition] = useState(false);
-  const [isReviewed, setIsReviewed] = useState(false);
   
   const { speak } = useSpeech();
 
-  // 获取添加原因配置
-  const reasonConfig = ADD_REASON_CONFIG[word.addReason];
+  // 当单词变化时重置状态
+  useEffect(() => {
+    setShowDefinition(false);
+  }, [word.id]);
+
+  // 获取添加原因配置，提供默认值
+  const reasonConfig = ADD_REASON_CONFIG[word.addReason] || {
+    label: '其他',
+    icon: <Eye className="h-3 w-3" />,
+    color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+  };
 
   // 处理播放单词发音
   const handlePlay = async () => {
@@ -67,13 +77,11 @@ export function ReviewWordCard({
   // 处理查看释义
   const handleShowDefinition = () => {
     setShowDefinition(true);
-    // 查看释义表明知道但不确定，需要重新排队
-    handleReviewResult('familiar');
+    // 只是显示释义，不直接处理复习结果
   };
 
   // 处理复习结果
   const handleReviewResult = (result: 'unknown' | 'familiar' | 'known') => {
-    setIsReviewed(true);
     onReviewResult(word.id, result);
   };
 
@@ -165,25 +173,58 @@ export function ReviewWordCard({
                 </Button>
               )}
               
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="destructive"
-                  onClick={() => handleReviewResult('unknown')}
-                  className="w-full"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  不会
-                </Button>
-                
-                <Button
-                  variant="default"
-                  onClick={() => handleReviewResult('known')}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  记忆
-                </Button>
-              </div>
+              {showDefinition ? (
+                // 显示释义后的三个选项
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleReviewResult('unknown')}
+                    className="w-full text-xs"
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    不会
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => handleReviewResult('familiar')}
+                    className="w-full text-xs"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    看了才记起
+                  </Button>
+                  
+                  <Button
+                    variant="default"
+                    onClick={() => handleReviewResult('known')}
+                    className="w-full bg-green-600 hover:bg-green-700 text-xs"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    记忆
+                  </Button>
+                </div>
+              ) : (
+                // 未显示释义时的两个选项
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleReviewResult('unknown')}
+                    className="w-full"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    不会
+                  </Button>
+                  
+                  <Button
+                    variant="default"
+                    onClick={() => handleReviewResult('known')}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    记忆
+                  </Button>
+                </div>
+              )}
             </div>
           )}
           

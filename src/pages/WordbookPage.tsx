@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { 
   Search, 
   Filter, 
@@ -59,7 +59,7 @@ interface FilterOptions {
 }
 
 export function WordbookPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const {
     words,
     stats,
@@ -282,7 +282,7 @@ export function WordbookPage() {
         <div className="mt-4 md:mt-0 flex items-center space-x-4">
           {stats && stats.needReviewWords > 0 && (
             <Button
-              onClick={() => navigate('/wordbook/review')}
+              onClick={() => router.push('/wordbook/review')}
               className="bg-orange-600 hover:bg-orange-700"
             >
               <Clock className="h-4 w-4 mr-2" />
@@ -536,7 +536,7 @@ export function WordbookPage() {
             }
           </p>
           {words.length === 0 ? (
-            <Button onClick={() => navigate('/')}>
+            <Button onClick={() => router.push('/')}>
               开始学习
             </Button>
           ) : (

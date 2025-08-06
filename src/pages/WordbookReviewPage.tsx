@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft,
   RotateCcw,
@@ -15,7 +15,7 @@ import { useWordbook } from '@/hooks';
 import { Word } from '@/types';
 
 export function WordbookReviewPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const {
     getTodayReviewQueue,
     processReviewResult,
@@ -33,68 +33,115 @@ export function WordbookReviewPage() {
     familiar: 0,
     unknown: 0
   });
+  const [pendingReviews, setPendingReviews] = useState<Array<{
+    wordId: number;
+    result: 'unknown' | 'familiar' | 'known';
+  }>>([]);
+  const [reviewedWordIds, setReviewedWordIds] = useState<Set<number>>(new Set());
 
   // 加载复习队列
-  const loadReviewQueue = async () => {
+  const loadReviewQueue = useCallback(async () => {
     try {
       const queue = await getTodayReviewQueue();
       setReviewQueue(queue);
       setCurrentIndex(0);
       setCompletedCount(0);
       setSessionStats({ known: 0, familiar: 0, unknown: 0 });
+      setPendingReviews([]); // 清空待处理复习结果
+      setReviewedWordIds(new Set()); // 清空已复习单词记录
     } catch (err) {
       console.error('加载复习队列失败:', err);
     }
-  };
+  }, [getTodayReviewQueue]);
 
   // 初始化加载复习队列
   useEffect(() => {
     loadReviewQueue();
-  }, [loadReviewQueue]);
+  }, []); // 移除依赖，避免无限循环
 
-  // 处理复习结果
-  const handleReviewResult = async (
+  // 处理复习结果（本地处理，不立即发送到服务端）
+  const handleReviewResult = (
     wordId: number, 
     result: 'unknown' | 'familiar' | 'known'
   ) => {
-    try {
-      await processReviewResult(wordId, result);
-      
-      // 更新统计
-      setSessionStats(prev => ({
-        ...prev,
-        [result]: prev[result] + 1
-      }));
-      
-      setCompletedCount(prev => prev + 1);
-      
-      // 根据结果处理队列
-      if (result === 'unknown') {
-        // 不会的单词重新排队到后面
-        const currentWord = reviewQueue[currentIndex];
-        setReviewQueue(prev => {
-          const newQueue = [...prev];
-          newQueue.splice(currentIndex, 1); // 移除当前位置
-          newQueue.push(currentWord); // 添加到末尾
-          return newQueue;
-        });
-      } else {
-        // 其他情况移到下一个单词
-        setCurrentIndex(prev => prev + 1);
-      }
-    } catch (err) {
-      console.error('处理复习结果失败:', err);
+    // 记录复习结果到待处理队列
+    setPendingReviews(prev => [...prev, { wordId, result }]);
+    
+    // 更新统计
+    setSessionStats(prev => ({
+      ...prev,
+      [result]: prev[result] + 1
+    }));
+    
+    setCompletedCount(prev => prev + 1);
+    
+    // 根据结果处理队列
+    if (result === 'unknown') {
+      // 不会的单词重新排队到后面，但不标记为已复习
+      const currentWord = reviewQueue[currentIndex];
+      setReviewQueue(prev => {
+        const newQueue = [...prev];
+        newQueue.splice(currentIndex, 1); // 移除当前位置
+        newQueue.push(currentWord); // 添加到末尾
+        return newQueue;
+      });
+    } else {
+      // 其他情况标记为已复习并移到下一个单词
+      setReviewedWordIds(prev => new Set([...prev, wordId]));
+      setCurrentIndex(prev => prev + 1);
     }
   };
 
+  // 批量提交复习结果到服务端
+  const submitPendingReviews = useCallback(async () => {
+    if (pendingReviews.length === 0) return;
+    
+    try {
+      // 批量处理复习结果
+      for (const review of pendingReviews) {
+        await processReviewResult(review.wordId, review.result);
+      }
+      
+      // 清空待处理队列
+      setPendingReviews([]);
+      
+      console.log(`已提交 ${pendingReviews.length} 个复习结果`);
+    } catch (err) {
+      console.error('提交复习结果失败:', err);
+    }
+  }, [pendingReviews, processReviewResult]);
+
+  // 当复习完成时提交结果
+  useEffect(() => {
+    const isCompleted = currentIndex >= reviewQueue.length && reviewQueue.length > 0;
+    if (isCompleted && pendingReviews.length > 0) {
+      submitPendingReviews();
+    }
+  }, [currentIndex, reviewQueue.length, pendingReviews.length, submitPendingReviews]);
+
   // 重新开始复习
   const handleRestart = () => {
+    // 先提交未处理的复习结果
+    if (pendingReviews.length > 0) {
+      submitPendingReviews();
+    }
+    // 重置状态
+    setCurrentIndex(0);
+    setCompletedCount(0);
+    setSessionStats({ known: 0, familiar: 0, unknown: 0 });
+    setPendingReviews([]);
+    setReviewedWordIds(new Set());
+    // 重新加载复习队列
     loadReviewQueue();
   };
 
   // 返回单词本
   const handleBack = () => {
-    navigate('/wordbook');
+    // 先提交未处理的复习结果
+    if (pendingReviews.length > 0) {
+      submitPendingReviews();
+    }
+    router.push('/wordbook');
   };
 
   // 计算进度
@@ -282,6 +329,7 @@ export function WordbookReviewPage() {
           <ReviewWordCard
             word={currentWord}
             onReviewResult={handleReviewResult}
+            isReviewed={reviewedWordIds.has(currentWord.id)}
           />
         </div>
       ) : (

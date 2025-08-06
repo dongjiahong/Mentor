@@ -11,11 +11,13 @@ yarn.lock
 *.test.ts
 *.test.tsx
 test_*.ts*
+mentor.db
 
 node_modules
 dist
 dist-ssr
 *.local
+tsconfig.tsbuildinfo
 
 # Editor directories and files
 .vscode/*
@@ -89,3 +91,5 @@ dist
 # Temporary folders
 tmp/
 temp/
+
+certificates

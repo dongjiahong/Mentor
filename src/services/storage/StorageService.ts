@@ -1,4 +1,4 @@
-import { DatabaseConnection } from '../database/connection';
+// import { DatabaseConnection } from '../database/connection'; // 已迁移到服务端
 import { 
   UserProfile, 
   AIConfig, 
