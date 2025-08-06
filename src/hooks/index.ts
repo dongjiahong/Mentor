@@ -57,3 +57,11 @@ export type {
   VoiceRecognitionState, 
   RecognitionResult 
 } from './useVoiceRecognition';
+
+// 学习记录相关 Hooks
+export { 
+  useLearningRecords, 
+  useLearningStats, 
+  useLearningAbilities, 
+  useLearningReport 
+} from './useLearningRecords';

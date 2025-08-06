@@ -68,3 +68,6 @@ export type { DictionaryConfig, DictionaryConfigValidation, ConfigField, Diction
 export { StorageService } from './storage/StorageService';
 export { WordbookService, MemoryAlgorithm } from './wordbook';
 export { DATABASE_SCHEMA, DATABASE_INDEXES, DATABASE_TRIGGERS } from './database/schema';
+
+// 学习记录服务实现
+export { LearningRecordsService, LearningRecordsClientService, learningRecordsClientService } from './learning-records';

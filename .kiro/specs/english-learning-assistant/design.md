@@ -2,13 +2,13 @@
 
 ## 概述
 
-英语学习助手是一个基于现代Web技术栈构建的单页应用程序，采用Vite + React + TypeScript + Tailwind CSS + shadcn/ui架构。系统集成AI大语言模型、Web Speech API、SQLite数据库和有道词典API，为用户提供个性化的英语学习体验。
+英语学习助手是一个基于现代Web技术栈构建的单页应用程序，采用Next + React + TypeScript + Tailwind CSS + shadcn/ui架构。系统集成AI大语言模型、Web Speech API、SQLite数据库和有道词典API，为用户提供个性化的英语学习体验。
 
 ### 核心技术栈
-- **前端框架**: React 18+ with TypeScript 5+
-- **构建工具**: Vite
+- **前端框架**: React 18+ with TypeScript 5+ Next
+- **构建工具**: Next
 - **UI组件库**: shadcn/ui + Tailwind CSS
-- **数据库**: SQLite (通过sql.js在浏览器中运行)
+- **数据库**: SQLite 
 - **语音处理**: Chrome Web Speech API (SpeechSynthesis + SpeechRecognition)
 - **AI集成**: OpenAI兼容API
 - **包管理器**: Yarn
@@ -421,7 +421,7 @@ interface AppError {
 ## 部署架构
 
 ### 构建配置
-- **开发环境**: Vite开发服务器，热重载
+- **开发环境**: next开发服务器，热重载
 - **生产环境**: 静态文件构建，CDN部署
 - **环境变量**: 不同环境的配置管理
 

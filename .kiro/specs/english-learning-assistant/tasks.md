@@ -3,14 +3,13 @@
 ## 项目初始化和基础架构
 
 - [x] 1. 创建项目基础结构和配置
-  - 初始化Vite + React + TypeScript项目
+  - 初始化Next + React + TypeScript项目
   - 配置Tailwind CSS和shadcn/ui
   - 设置ESLint、Prettier和TypeScript配置
   - 创建基本的目录结构（components、services、types、utils等）
   - _需求: 11.1, 11.2, 11.3_
 
 - [x] 2. 设置数据库和存储服务
-  - 集成sql.js库用于浏览器中的SQLite支持
   - 创建数据库初始化脚本和表结构
   - 实现StorageService基础类和数据库连接管理
   - 编写数据库操作的单元测试
@@ -112,7 +111,7 @@
 
 ## 学习记录和成长体系
 
-- [ ] 15. 实现学习行为记录系统
+- [x] 15. 实现学习行为记录系统
   - 创建学习活动的数据记录逻辑
   - 实现用户行为分析和统计功能
   - 添加学习时间、准确率等指标的计算
