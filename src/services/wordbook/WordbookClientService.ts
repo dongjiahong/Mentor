@@ -291,7 +291,10 @@ export class WordbookClientService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(activity),
+        body: JSON.stringify({
+          action: 'record_activity',
+          data: activity
+        }),
       });
 
       if (!response.ok) {

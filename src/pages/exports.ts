@@ -1,15 +1,7 @@
-export { LearningPage } from './LearningPage';
 export { NewLearningPage } from './NewLearningPage';
 export { NewIntegratedLearningPage } from './NewIntegratedLearningPage';
 export { WordbookPage } from './WordbookPage';
 export { WordbookReviewPage } from './WordbookReviewPage';
 export { ProgressPage } from './ProgressPage';
 export { SettingsPage } from './SettingsPage';
-export { DictionaryDemoPage } from './DictionaryDemoPage';
-export { DatabaseTestPage } from './DatabaseTestPage';
-export { TTSTestPage } from './TTSTestPage';
-export { VoiceRecorderTestPage } from './VoiceRecorderTestPage';
-export { STTDebugPage } from './STTDebugPage';
 export { PronunciationPracticePage } from './PronunciationPracticePage';
-export { PronunciationTestPage } from './PronunciationTestPage';
-export { DevNavigationPage } from './DevNavigationPage';
