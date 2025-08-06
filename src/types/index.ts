@@ -13,11 +13,59 @@ export type LearningGoal =
   | 'travel_english'        // 旅游英语
   | 'exam_preparation';     // 考试准备
 
-// 内容类型
-export type ContentType = 'dialogue' | 'article';
+// 内容类型 - 支持多媒体
+export type ContentType = 'dialogue' | 'article' | 'audio' | 'video' | 'image' | 'mixed';
 
-// 活动类型
-export type ActivityType = 'reading' | 'listening' | 'speaking' | 'translation';
+// 活动类型 - 新增写作活动
+export type ActivityType = 'reading' | 'listening' | 'speaking' | 'writing' | 'translation';
+
+// 学习模块类型 - 重构为5大模块
+export type LearningModule = 
+  | 'content'          // 内容管理模块
+  | 'listening'        // 听力练习模块
+  | 'speaking'         // 口语练习模块
+  | 'reading'          // 阅读练习模块
+  | 'writing';         // 写作练习模块
+
+// 保持向后兼容的语音学习模式
+export type VoiceLearningMode = 
+  | 'reading'          // 纯文本阅读模式
+  | 'follow_along'     // 跟读练习模式
+  | 'dialogue_practice' // 对话练习模式
+  | 'listening_comprehension'; // 听力理解模式
+
+// 语音练习类型
+export type VoicePracticeType = 
+  | 'sentence_repeat'   // 句子跟读
+  | 'word_pronunciation' // 单词发音
+  | 'free_speech'       // 自由表达
+  | 'dialogue_response'; // 对话回应
+
+// 写作练习类型
+export type WritingPracticeType = 
+  | 'sentence_construction' // 句子构造
+  | 'paragraph_writing'     // 段落写作
+  | 'essay_writing'         // 文章写作
+  | 'translation_writing'   // 翻译写作
+  | 'creative_writing'      // 创意写作
+  | 'business_writing'      // 商务写作
+  | 'email_writing';        // 邮件写作
+
+// 听力练习类型
+export type ListeningPracticeType = 
+  | 'comprehension'         // 听力理解
+  | 'dictation'            // 听写
+  | 'gap_filling'          // 填空
+  | 'multiple_choice'      // 选择题
+  | 'dialogue_listening';   // 对话听力
+
+// 阅读练习类型  
+export type ReadingPracticeType = 
+  | 'comprehension'         // 阅读理解
+  | 'vocabulary_building'   // 词汇构建
+  | 'speed_reading'         // 快速阅读
+  | 'detailed_reading'      // 精读
+  | 'skimming_scanning';    // 略读扫读
 
 // 考试类型
 export type ExamType = 'vocabulary' | 'pronunciation' | 'comprehension';
@@ -66,6 +114,84 @@ export interface LearningContent {
   createdAt: Date;
 }
 
+// 语音练习句子接口
+export interface VoicePracticeSentence {
+  id: string;
+  text: string;
+  translation: string;
+  difficulty: number;        // 1-5 难度等级
+  phonetic?: string;         // 音标
+  tips?: string;            // 发音提示
+}
+
+// 语音练习内容接口
+export interface VoicePracticeContent {
+  id: string;
+  title: string;
+  description: string;
+  level: EnglishLevel;
+  category: string;
+  practiceType: VoicePracticeType;
+  sentences: VoicePracticeSentence[];
+  estimatedDuration: number; // 预估练习时间（分钟）
+}
+
+// 对话练习场景接口
+export interface DialoguePracticeScenario {
+  id: string;
+  title: string;
+  description: string;
+  level: EnglishLevel;
+  category: string;
+  conversations: DialogueItem[];
+}
+
+// 对话项接口
+export interface DialogueItem {
+  id: string;
+  speaker: 'system' | 'user';
+  text: string;
+  translation?: string;
+  expectedResponse?: string; // 期望的用户回答
+  hints?: string[];          // 提示信息
+}
+
+// 语音学习会话接口
+export interface VoiceLearningSession {
+  id: string;
+  mode: VoiceLearningMode;
+  contentId: string;
+  startTime: Date;
+  endTime?: Date;
+  attempts: VoiceAttempt[];
+  totalScore?: number;
+  completed: boolean;
+}
+
+// 语音尝试记录接口
+export interface VoiceAttempt {
+  id: string;
+  sentenceId: string;
+  originalText: string;
+  spokenText: string;
+  similarity: number;        // 相似度 0-100
+  pronunciationScore?: PronunciationScore;
+  timestamp: Date;
+  audioBlob?: Blob;         // 录音数据
+}
+
+// 语音学习进度接口
+export interface VoiceLearningProgress {
+  mode: VoiceLearningMode;
+  totalSessions: number;
+  completedSessions: number;
+  averageScore: number;
+  bestScore: number;
+  totalPracticeTime: number; // 总练习时间（秒）
+  streakDays: number;        // 连续练习天数
+  lastPracticeDate?: Date;
+}
+
 // 单词接口
 export interface Word {
   id: number;
@@ -81,6 +207,196 @@ export interface Word {
   lastReviewAt?: Date;
   nextReviewAt?: Date;
   createdAt: Date;
+}
+
+// ============================================================================
+// 新5模块架构相关接口
+// ============================================================================
+
+// 统一内容接口 - 支持多模块复用
+export interface UniversalContent {
+  id: string;
+  title: string;
+  description: string;
+  contentType: ContentType;
+  level: EnglishLevel;
+  category: string;
+  tags: string[];            // 内容标签
+  originalText?: string;     // 原文文本
+  translation?: string;      // 中文翻译
+  audioUrl?: string;         // 音频URL
+  videoUrl?: string;         // 视频URL
+  imageUrl?: string;         // 图片URL
+  wordCount?: number;        // 单词数量
+  estimatedDuration: number; // 预估学习时间（分钟）
+  sentences?: ContentSentence[];     // 句子列表
+  conversations?: ContentDialogue[]; // 对话列表
+  metadata?: Record<string, unknown>; // 扩展元数据
+  supportedModules: LearningModule[]; // 支持的学习模块
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+// 内容句子接口
+export interface ContentSentence {
+  id: string;
+  text: string;
+  translation: string;
+  difficulty: number;        // 1-5 难度等级
+  phonetic?: string;         // 音标
+  audioUrl?: string;         // 句子音频
+  startTime?: number;        // 在音视频中的开始时间
+  endTime?: number;          // 在音视频中的结束时间
+  keywords?: string[];       // 关键词
+  tips?: string;            // 学习提示
+}
+
+// 内容对话接口
+export interface ContentDialogue {
+  id: string;
+  speaker: 'system' | 'user' | 'character1' | 'character2';
+  speakerName?: string;      // 说话者名字
+  text: string;
+  translation?: string;
+  audioUrl?: string;         // 对话音频
+  startTime?: number;        // 开始时间
+  endTime?: number;          // 结束时间
+  expectedResponse?: string; // 期望的用户回答（用于口语练习）
+  hints?: string[];          // 提示信息
+}
+
+// 写作练习内容接口
+export interface WritingPracticeContent {
+  id: string;
+  title: string;
+  description: string;
+  level: EnglishLevel;
+  category: string;
+  practiceType: WritingPracticeType;
+  prompt: string;            // 写作提示
+  sampleAnswer?: string;     // 参考答案
+  wordLimit?: number;        // 字数限制
+  timeLimit?: number;        // 时间限制（分钟）
+  rubric?: WritingRubric;    // 评分标准
+  templates?: string[];      // 写作模板
+  keywords?: string[];       // 关键词提示
+  estimatedDuration: number; // 预估时间
+  difficulty: number;        // 难度等级 1-5
+}
+
+// 写作评分标准接口
+export interface WritingRubric {
+  id: string;
+  name: string;
+  criteria: RubricCriterion[];
+  totalPoints: number;
+}
+
+// 评分标准条目
+export interface RubricCriterion {
+  id: string;
+  name: string;           // 评分项名称，如"语法"、"内容"、"结构"
+  description: string;    // 描述
+  maxPoints: number;      // 最高分
+  weight: number;         // 权重
+}
+
+// 写作提交记录接口
+export interface WritingSubmission {
+  id: string;
+  practiceId: string;     // 练习内容ID
+  content: string;        // 用户提交的内容
+  wordCount: number;      // 实际字数
+  timeSpent: number;      // 花费时间（秒）
+  score?: WritingScore;   // 评分结果
+  feedback?: string;      // 反馈建议
+  status: 'draft' | 'submitted' | 'graded'; // 状态
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+// 写作评分结果接口
+export interface WritingScore {
+  totalScore: number;     // 总分
+  maxScore: number;       // 满分
+  criteriaScores: CriterionScore[]; // 各项评分
+  overallFeedback: string; // 总体反馈
+  suggestions: string[];   // 改进建议
+  gradedAt: Date;
+}
+
+// 单项评分结果
+export interface CriterionScore {
+  criterionId: string;
+  score: number;
+  maxScore: number;
+  feedback: string;
+}
+
+// 听力练习内容接口
+export interface ListeningPracticeContent {
+  id: string;
+  title: string;
+  description: string;
+  level: EnglishLevel;
+  category: string;
+  practiceType: ListeningPracticeType;
+  audioUrl: string;        // 音频URL
+  transcript?: string;     // 音频文本
+  duration: number;        // 音频时长（秒）
+  questions?: ListeningQuestion[]; // 听力问题
+  estimatedDuration: number; // 预估练习时间
+  playbackSpeed: number[];  // 支持的播放速度
+  difficulty: number;       // 难度等级
+}
+
+// 听力问题接口
+export interface ListeningQuestion {
+  id: string;
+  type: 'multiple_choice' | 'fill_blank' | 'true_false' | 'short_answer';
+  question: string;
+  options?: string[];       // 选择题选项
+  correctAnswer: string;
+  explanation?: string;     // 答案解释
+  startTime?: number;       // 相关音频开始时间
+  endTime?: number;         // 相关音频结束时间
+}
+
+// 阅读练习内容接口
+export interface ReadingPracticeContent {
+  id: string;
+  title: string;
+  description: string;
+  level: EnglishLevel;
+  category: string;
+  practiceType: ReadingPracticeType;
+  text: string;            // 阅读文本
+  wordCount: number;       // 字数
+  questions?: ReadingQuestion[]; // 阅读理解问题
+  vocabulary?: VocabularyItem[]; // 重点词汇
+  estimatedDuration: number; // 预估阅读时间
+  difficulty: number;       // 难度等级
+}
+
+// 阅读问题接口
+export interface ReadingQuestion {
+  id: string;
+  type: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay';
+  question: string;
+  options?: string[];
+  correctAnswer: string;
+  explanation?: string;
+  paragraph?: number;       // 相关段落编号
+}
+
+// 词汇项接口
+export interface VocabularyItem {
+  word: string;
+  definition: string;
+  pronunciation?: string;
+  partOfSpeech: string;
+  example: string;
+  difficulty: number;
 }
 
 // 学习记录接口
@@ -622,3 +938,114 @@ export const DEFAULT_RECOGNITION_OPTIONS = {
   interimResults: true,
   maxAlternatives: 1,
 } as const;
+
+// ============================================================================
+// 5模块架构相关常量
+// ============================================================================
+
+// 学习模块描述
+export const LEARNING_MODULE_DESCRIPTIONS = {
+  content: {
+    title: '内容管理',
+    description: '浏览和管理所有学习材料',
+    icon: 'Archive',
+    color: 'from-blue-500 to-blue-600'
+  },
+  listening: {
+    title: '听力练习',
+    description: '提升听力理解和听写能力',
+    icon: 'Headphones',
+    color: 'from-green-500 to-green-600'
+  },
+  speaking: {
+    title: '口语练习',
+    description: '训练发音和口语表达',
+    icon: 'Mic',
+    color: 'from-orange-500 to-orange-600'
+  },
+  reading: {
+    title: '阅读练习',
+    description: '提升阅读理解和词汇量',
+    icon: 'BookOpen',
+    color: 'from-purple-500 to-purple-600'
+  },
+  writing: {
+    title: '写作练习',
+    description: '锻炼写作技巧和表达能力',
+    icon: 'PenTool',
+    color: 'from-pink-500 to-pink-600'
+  }
+} as const;
+
+// 写作练习类型描述
+export const WRITING_PRACTICE_TYPE_DESCRIPTIONS = {
+  sentence_construction: '句子构造',
+  paragraph_writing: '段落写作',
+  essay_writing: '文章写作',
+  translation_writing: '翻译写作',
+  creative_writing: '创意写作',
+  business_writing: '商务写作',
+  email_writing: '邮件写作'
+} as const;
+
+// 听力练习类型描述
+export const LISTENING_PRACTICE_TYPE_DESCRIPTIONS = {
+  comprehension: '听力理解',
+  dictation: '听写练习',
+  gap_filling: '听力填空',
+  multiple_choice: '听力选择',
+  dialogue_listening: '对话听力'
+} as const;
+
+// 阅读练习类型描述
+export const READING_PRACTICE_TYPE_DESCRIPTIONS = {
+  comprehension: '阅读理解',
+  vocabulary_building: '词汇构建',
+  speed_reading: '快速阅读',
+  detailed_reading: '精读练习',
+  skimming_scanning: '略读扫读'
+} as const;
+
+// 默认写作评分标准
+export const DEFAULT_WRITING_RUBRIC: WritingRubric = {
+  id: 'default_rubric',
+  name: '通用写作评分标准',
+  criteria: [
+    {
+      id: 'content',
+      name: '内容',
+      description: '思想表达是否清晰，内容是否充实',
+      maxPoints: 25,
+      weight: 0.3
+    },
+    {
+      id: 'organization',
+      name: '结构',
+      description: '文章结构是否合理，逻辑是否清晰',
+      maxPoints: 20,
+      weight: 0.2
+    },
+    {
+      id: 'grammar',
+      name: '语法',
+      description: '语法使用是否正确',
+      maxPoints: 25,
+      weight: 0.25
+    },
+    {
+      id: 'vocabulary',
+      name: '词汇',
+      description: '词汇使用是否恰当、丰富',
+      maxPoints: 20,
+      weight: 0.15
+    },
+    {
+      id: 'mechanics',
+      name: '语言mechanics',
+      description: '拼写、标点符号使用等',
+      maxPoints: 10,
+      weight: 0.1
+    }
+  ],
+  totalPoints: 100
+};

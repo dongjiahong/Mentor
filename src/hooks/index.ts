@@ -50,6 +50,7 @@ export { useDictionary, useDictionaryQuery } from './useDictionary';
 export { useSpeech } from './useSpeech';
 export type { UseSpeechOptions, UseSpeechReturn } from './useSpeech';
 export { useVoiceRecognition } from './useVoiceRecognition';
+export { useVoiceLearning } from './useVoiceLearning';
 export { useWordbook } from './useWordbook';
 export type { 
   UseVoiceRecognitionOptions, 
@@ -57,6 +58,12 @@ export type {
   VoiceRecognitionState, 
   RecognitionResult 
 } from './useVoiceRecognition';
+export type {
+  UseVoiceLearningOptions,
+  UseVoiceLearningReturn,
+  VoiceLearningState,
+  VoiceLearningProgress
+} from './useVoiceLearning';
 
 // 学习记录相关 Hooks
 export { 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Search, 
@@ -83,13 +83,15 @@ export function WordbookPage() {
   const [showBatchActions, setShowBatchActions] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(12); // 每页显示12个单词卡
 
   // 注意：不需要在这里初始化加载数据，useWordbook hook 会自动加载
 
   // 构建查询参数
   const queryParams = useMemo((): WordQueryParams => {
     const params: WordQueryParams = {
-      limit: 100, // 暂时设置较大的限制
+      limit: 1000, // 获取更多数据用于客户端分页
     };
 
     if (searchQuery.trim()) {
@@ -151,6 +153,14 @@ export function WordbookPage() {
     return result;
   }, [words, sortBy, sortOrder]);
 
+  // 分页数据
+  const paginatedWords = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedWords.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAndSortedWords, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredAndSortedWords.length / itemsPerPage);
+
   // 重新加载数据（仅在查询参数变化时）
   useEffect(() => {
     // 只有在有搜索或筛选条件时才重新加载
@@ -158,6 +168,11 @@ export function WordbookPage() {
       loadWords(queryParams);
     }
   }, [queryParams]);
+
+  // 重置页码当筛选条件改变时
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters, sortBy, sortOrder]);
 
   // 处理搜索
   const handleSearch = (query: string) => {
@@ -198,17 +213,25 @@ export function WordbookPage() {
     setShowBatchActions(newSelected.size > 0);
   };
 
-  // 全选/取消全选
-  const handleSelectAll = () => {
-    if (selectedWords.size === filteredAndSortedWords.length) {
-      setSelectedWords(new Set());
-      setShowBatchActions(false);
+  // 全选/取消全选（仅当前页）
+  const handleSelectAll = useCallback(() => {
+    const currentPageWordIds = new Set(paginatedWords.map(w => w.id));
+    const allCurrentPageSelected = paginatedWords.every(word => selectedWords.has(word.id));
+    
+    if (allCurrentPageSelected) {
+      // 取消当前页的选中
+      const newSelected = new Set(selectedWords);
+      paginatedWords.forEach(word => newSelected.delete(word.id));
+      setSelectedWords(newSelected);
+      setShowBatchActions(newSelected.size > 0);
     } else {
-      const allIds = new Set(filteredAndSortedWords.map(w => w.id));
-      setSelectedWords(allIds);
+      // 选中当前页的所有单词
+      const newSelected = new Set(selectedWords);
+      paginatedWords.forEach(word => newSelected.add(word.id));
+      setSelectedWords(newSelected);
       setShowBatchActions(true);
     }
-  };
+  }, [paginatedWords, selectedWords]);
 
   // 批量删除
   const handleBatchDelete = async () => {
@@ -305,40 +328,40 @@ export function WordbookPage() {
 
       {/* 统计卡片 */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-6">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">总单词数</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground">总单词数</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalWords}</div>
+            <CardContent className="pt-0">
+              <div className="text-lg font-bold">{stats.totalWords}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">已掌握</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground">已掌握</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.masteredWords}</div>
+            <CardContent className="pt-0">
+              <div className="text-lg font-bold text-green-600">{stats.masteredWords}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">需复习</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground">需复习</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{stats.needReviewWords}</div>
+            <CardContent className="pt-0">
+              <div className="text-lg font-bold text-orange-600">{stats.needReviewWords}</div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">掌握率</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground">掌握率</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="pt-0">
+              <div className="text-lg font-bold">
                 {stats.totalWords > 0 ? Math.round((stats.masteredWords / stats.totalWords) * 100) : 0}%
               </div>
             </CardContent>
@@ -408,12 +431,12 @@ export function WordbookPage() {
             onClick={handleSelectAll}
             className={selectedWords.size > 0 ? 'bg-primary/10' : ''}
           >
-            {selectedWords.size === filteredAndSortedWords.length ? (
+            {paginatedWords.every(word => selectedWords.has(word.id)) && paginatedWords.length > 0 ? (
               <CheckSquare className="h-4 w-4 mr-2" />
             ) : (
               <Square className="h-4 w-4 mr-2" />
             )}
-            {selectedWords.size > 0 ? `已选 ${selectedWords.size}` : '全选'}
+            {selectedWords.size > 0 ? `已选 ${selectedWords.size}` : '全选当前页'}
           </Button>
 
           {/* 刷新按钮 */}
@@ -546,20 +569,78 @@ export function WordbookPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAndSortedWords.map((word) => (
-            <WordCard
-              key={word.id}
-              word={word}
-              onProficiencyUpdate={handleProficiencyUpdate}
-              onRemove={handleWordRemove}
-              onEdit={handleWordEdit}
-              isSelected={selectedWords.has(word.id)}
-              onSelect={handleWordSelect}
-              showCheckbox={showBatchActions}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedWords.map((word) => (
+              <WordCard
+                key={word.id}
+                word={word}
+                onProficiencyUpdate={handleProficiencyUpdate}
+                onRemove={handleWordRemove}
+                onEdit={handleWordEdit}
+                isSelected={selectedWords.has(word.id)}
+                onSelect={handleWordSelect}
+                showCheckbox={showBatchActions}
+              />
+            ))}
+          </div>
+          
+          {/* 分页信息 */}
+          <div className="flex items-center justify-between mt-6">
+            <p className="text-sm text-muted-foreground">
+              显示 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredAndSortedWords.length)} / {filteredAndSortedWords.length} 个单词
+            </p>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                  disabled={currentPage === 1}
+                >
+                  上一页
+                </Button>
+                
+                {/* 页码按钮 */}
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="w-10 h-8"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  下一页
+                </Button>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* 筛选对话框 */}

@@ -115,72 +115,35 @@ export function DictionaryConfig({ className }: DictionaryConfigProps) {
   ) : true;
 
   return (
-    <Card className={cn("w-full max-w-2xl", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Settings className="h-5 w-5" />
-          <span>词典服务配置</span>
-        </CardTitle>
-        <CardDescription>
-          词典服务已默认启用免费词典API，提供真实的英语单词查询功能。支持音标、释义、例句等完整信息。
-        </CardDescription>
-      </CardHeader>
+    <div className={cn("space-y-4", className)}>
+      {/* 错误提示 */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error.message}
+          </AlertDescription>
+        </Alert>
+      )}
 
-      <CardContent className="space-y-6">
-        {/* 错误提示 */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {error.message}
-            </AlertDescription>
-          </Alert>
-        )}
+      {/* 成功提示 */}
+      {saveSuccess && (
+        <Alert>
+          <Check className="h-4 w-4" />
+          <AlertDescription>
+            词典服务配置已保存！
+          </AlertDescription>
+        </Alert>
+      )}
 
-        {/* 成功提示 */}
-        {saveSuccess && (
-          <Alert>
-            <Check className="h-4 w-4" />
-            <AlertDescription>
-              配置保存成功！词典服务已启用。
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* 验证错误 */}
-        {validationErrors.length > 0 && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <div className="space-y-1">
-                {validationErrors.map((error, index) => (
-                  <div key={index}>• {error}</div>
-                ))}
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* 验证警告 */}
-        {validationWarnings.length > 0 && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <div className="space-y-1">
-                {validationWarnings.map((warning, index) => (
-                  <div key={index}>• {warning}</div>
-                ))}
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
+      {/* 简化的配置界面 */}
+      <div className="space-y-4">
         {/* 启用开关 */}
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label htmlFor="enabled">启用词典服务</Label>
+            <Label htmlFor="enabled">启用词典查询</Label>
             <p className="text-sm text-muted-foreground">
-              启用后可以在阅读时查询单词释义
+              点击单词时显示释义、音标和例句
             </p>
           </div>
           <Switch
@@ -190,120 +153,51 @@ export function DictionaryConfig({ className }: DictionaryConfigProps) {
           />
         </div>
 
-        {/* 服务提供商选择 */}
-        <div className="space-y-2">
-          <Label htmlFor="provider">服务提供商</Label>
-          <Select
-            value={formData.provider}
-            onValueChange={(value) => handleInputChange('provider', value as 'free')}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="选择词典服务提供商" />
-            </SelectTrigger>
-            <SelectContent>
-              {providers.map((provider) => (
-                <SelectItem key={provider.id} value={provider.id}>
-                  <div className="flex flex-col">
-                    <span>{provider.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {provider.description}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedProvider && (
-            <p className="text-sm text-muted-foreground">
-              {selectedProvider.description}
-            </p>
-          )}
-        </div>
-
-        {/* 服务说明 */}
-        {selectedProvider && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <div className="space-y-2">
-                <p className="font-medium">免费词典服务说明：</p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  <li>使用 Free Dictionary API 提供真实的英语词典查询</li>
-                  <li>支持音标、释义、例句和发音功能</li>
-                  <li>完全免费，无需注册或配置API密钥</li>
-                  <li>数据来源于开源词典项目</li>
-                </ul>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* 当前状态 */}
-        <div className="pt-4 border-t border-border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">当前状态</p>
-              <p className="text-sm text-muted-foreground">
-                {isLoading ? (
-                  <span className="flex items-center">
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    初始化中...
-                  </span>
-                ) : isConfigured ? (
-                  <span className="text-green-600">已配置并启用</span>
-                ) : (
-                  <span className="text-muted-foreground">未配置</span>
-                )}
-              </p>
-            </div>
-            
-            {config && (
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">
-                  提供商: {providers.find(p => p.id === config.provider)?.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  更新时间: {config.updatedAt.toLocaleString()}
-                </p>
-              </div>
-            )}
+        {/* 状态显示 */}
+        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <div className={cn("h-2 w-2 rounded-full", 
+              isConfigured && formData.enabled ? "bg-green-500" : "bg-gray-400"
+            )} />
+            <span className="text-sm">
+              {isLoading ? "初始化中..." : 
+               isConfigured && formData.enabled ? "词典服务已启用" : "词典服务未启用"}
+            </span>
           </div>
+          <span className="text-xs text-muted-foreground">
+            免费词典API
+          </span>
         </div>
 
         {/* 操作按钮 */}
-        <div className="flex space-x-3 pt-4">
-          <Button
-            onClick={handleSave}
-            disabled={!hasChanges || isSaving || !formData.enabled}
-            className="flex-1"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                保存中...
-              </>
-            ) : (
-              '保存配置'
-            )}
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={handleReset}
-            disabled={!hasChanges || isSaving}
-          >
-            重置
-          </Button>
-          
-          <Button
-            variant="ghost"
-            onClick={handleValidate}
-            disabled={isSaving}
-          >
-            验证
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        {hasChanges && (
+          <div className="flex space-x-2">
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              size="sm"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  保存中...
+                </>
+              ) : (
+                "保存"
+              )}
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={handleReset}
+              disabled={isSaving}
+              size="sm"
+            >
+              重置
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

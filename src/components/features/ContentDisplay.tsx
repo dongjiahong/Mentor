@@ -4,7 +4,7 @@ import { TextRenderer } from './TextRenderer';
 import { WordPopover } from './WordPopover';
 import { AudioControls } from './AudioControls';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, Settings } from 'lucide-react';
+import { Eye, EyeOff, Settings, Volume2 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useWordbook } from '@/hooks';
@@ -141,6 +141,19 @@ export function ContentDisplay({
 
       {/* 内容区域 */}
       <div className="p-6">
+        {/* 听力练习提示 */}
+        {!showTranslation && (
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+            <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300">
+              <Volume2 className="h-4 w-4" />
+              <span className="text-sm font-medium">💡 听力练习建议</span>
+            </div>
+            <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+              建议先听音频理解内容，然后再查看翻译对照学习效果
+            </p>
+          </div>
+        )}
+        
         <TextRenderer
           originalText={content.originalText}
           translation={showTranslation ? content.translation : undefined}

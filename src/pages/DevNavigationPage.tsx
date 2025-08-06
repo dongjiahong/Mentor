@@ -17,7 +17,7 @@ import {
   ExternalLink,
   Plus
 } from 'lucide-react';
-import { addTestWords } from '@/utils/testData';
+import { addTestWords, addTestContents } from '@/utils/testData';
 
 interface PageInfo {
   path: string;
@@ -32,11 +32,27 @@ const pages: PageInfo[] = [
   // 主要功能页面
   {
     path: '/',
-    title: '学习页面',
-    description: '主要的英语学习界面，包含内容阅读和学习功能',
+    title: '集成学习中心 (新)',
+    description: '全新的5模块学习架构：内容管理、听说读写全方位训练',
     category: 'main',
     icon: <Home className="h-5 w-5" />,
+    status: 'beta'
+  },
+  {
+    path: '/learning-new',
+    title: '传统学习页面',
+    description: '原有的语音学习界面，支持跟读和对话练习',
+    category: 'main',
+    icon: <BookOpen className="h-5 w-5" />,
     status: 'stable'
+  },
+  {
+    path: '/learning-integrated',
+    title: '集成学习页面 (实验)',
+    description: '实验性的集成学习界面，集成所有学习模块',
+    category: 'main',
+    icon: <Target className="h-5 w-5" />,
+    status: 'experimental'
   },
   {
     path: '/wordbook',
@@ -235,18 +251,30 @@ export function DevNavigationPage() {
           <div className="space-y-4">
             <div>
               <h4 className="font-medium mb-2">测试数据</h4>
-              <Button 
-                onClick={addTestWords}
-                variant="outline" 
-                size="sm" 
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                添加测试单词
-              </Button>
-              <p className="text-sm text-muted-foreground mt-1">
-                添加一些测试单词到单词本，用于测试复习功能
-              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Button 
+                  onClick={addTestWords}
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  添加测试单词
+                </Button>
+                <Button 
+                  onClick={addTestContents}
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  添加学习内容
+                </Button>
+              </div>
+              <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                <p>• 添加一些测试单词到单词本，用于测试复习功能</p>
+                <p>• 添加5模块学习系统的多媒体测试内容</p>
+              </div>
             </div>
           </div>
         </CardContent>

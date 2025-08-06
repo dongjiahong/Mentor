@@ -5,20 +5,60 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const needReview = searchParams.get('need_review') === 'true'
+    const proficiencyLevel = searchParams.get('proficiency_level')
+    const addReason = searchParams.get('add_reason')
+    const search = searchParams.get('search')
+    const limit = searchParams.get('limit')
+    const offset = searchParams.get('offset')
     
     const db = getDatabase()
     
     let query = 'SELECT * FROM wordbook'
+    const whereConditions: string[] = []
+    const queryParams: (string | number)[] = []
     let orderBy = 'ORDER BY created_at DESC'
     
+    // 构建WHERE条件
     if (needReview) {
-      // 只获取需要复习的单词（nextReviewAt 为空或小于等于当前时间）
-      query += ' WHERE next_review_at IS NULL OR next_review_at <= datetime(\'now\')'
+      whereConditions.push('(next_review_at IS NULL OR next_review_at <= datetime(\'now\'))')
       orderBy = 'ORDER BY next_review_at ASC'
     }
     
-    const stmt = db.prepare(`${query} ${orderBy}`)
-    const words = stmt.all()
+    if (proficiencyLevel !== null && proficiencyLevel !== undefined) {
+      whereConditions.push('proficiency_level = ?')
+      queryParams.push(parseInt(proficiencyLevel))
+    }
+    
+    if (addReason) {
+      whereConditions.push('add_reason = ?')
+      queryParams.push(addReason)
+    }
+    
+    if (search) {
+      whereConditions.push('word LIKE ?')
+      queryParams.push(`%${search}%`)
+    }
+    
+    // 组装完整查询
+    if (whereConditions.length > 0) {
+      query += ' WHERE ' + whereConditions.join(' AND ')
+    }
+    
+    query += ` ${orderBy}`
+    
+    // 添加分页支持
+    if (limit) {
+      query += ' LIMIT ?'
+      queryParams.push(parseInt(limit))
+      
+      if (offset) {
+        query += ' OFFSET ?'
+        queryParams.push(parseInt(offset))
+      }
+    }
+    
+    const stmt = db.prepare(query)
+    const words = stmt.all(...queryParams)
     
     return NextResponse.json({ success: true, data: words })
   } catch (error) {
@@ -61,9 +101,13 @@ export async function POST(request: NextRequest) {
     
     const result = stmt.run(word, definition, pronunciation || null, addReason)
     
+    // 获取完整的单词记录
+    const getWordStmt = db.prepare('SELECT * FROM wordbook WHERE id = ?')
+    const newWord = getWordStmt.get(result.lastInsertRowid)
+    
     return NextResponse.json({
       success: true,
-      data: { id: result.lastInsertRowid, word, definition, pronunciation, addReason }
+      data: newWord
     })
   } catch (error) {
     console.error('添加单词失败:', error)

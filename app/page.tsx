@@ -1,7 +1,7 @@
 'use client'
 
-import { LearningPage } from '@/pages/LearningPage'
+import { NewIntegratedLearningPage } from '@/pages/NewIntegratedLearningPage'
 
 export default function Home() {
-  return <LearningPage />
+  return <NewIntegratedLearningPage />
 }
