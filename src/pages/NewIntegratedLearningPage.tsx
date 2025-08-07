@@ -13,7 +13,8 @@ import {
   BookOpen,
   PenTool,
   Bot,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -31,8 +32,10 @@ import {
   ReadingPracticePanel,
   WritingPracticePanel
 } from '@/components/features';
-import { contentManager } from '@/services/content';
-import { allSampleContents, writingContents, listeningContents, readingContents } from '@/services/content/SampleContentData';
+import { writingContents, listeningContents, readingContents } from '@/services/content/SampleContentData';
+import { learningContentService } from '@/services/learning-content/LearningContentService';
+import { useLearningContent } from '@/hooks/useLearningContent';
+import { convertToVoicePracticeContent, convertToDialoguePracticeScenario } from '@/utils/contentConverter';
 
 type ViewState = 
   | 'home'                    // 主页 - 模块选择
@@ -47,6 +50,7 @@ interface LearningPageState {
   currentView: ViewState;
   selectedModule: LearningModule | null;
   selectedContent: UniversalContent | ListeningPracticeContent | ReadingPracticeContent | WritingPracticeContent | null;
+  dbContents: UniversalContent[];
   userProgress: Record<LearningModule, {
     totalTime: number;
     completedSessions: number;
@@ -60,6 +64,7 @@ export function NewIntegratedLearningPage() {
     currentView: 'home',
     selectedModule: null,
     selectedContent: null,
+    dbContents: [],
     userProgress: {
       content: { totalTime: 3600, completedSessions: 12, averageScore: 0, streak: 5 },
       listening: { totalTime: 2400, completedSessions: 8, averageScore: 78, streak: 3 },
@@ -69,11 +74,78 @@ export function NewIntegratedLearningPage() {
     }
   });
 
-  // 初始化内容管理器
+  // 从数据库获取学习内容
+  const { content: dbContent, loading: dbLoading, error: dbError } = useLearningContent();
+
+  // 处理数据库内容转换
   useEffect(() => {
-    // 添加示例内容到内容管理器
-    contentManager.addBatchContent(allSampleContents);
-  }, []);
+    if (dbContent && dbContent.length > 0) {
+      const convertedContent: UniversalContent[] = [];
+      
+      dbContent.forEach(item => {
+        if (item.content_type === 'article' || item.content_type === 'mixed') {
+          const converted = convertToVoicePracticeContent(item);
+          if (converted) {
+            // 转换为UniversalContent格式
+            const universalContent: UniversalContent = {
+              id: converted.id,
+              title: converted.title,
+              description: converted.description,
+              contentType: 'article' as const,
+              level: converted.level,
+              category: converted.category,
+              tags: [converted.category],
+              originalText: converted.sentences.map(s => s.text).join(' '),
+              translation: converted.sentences.map(s => s.translation).join(' '),
+              wordCount: converted.sentences.reduce((sum, s) => sum + s.text.split(' ').length, 0),
+              estimatedDuration: converted.estimatedDuration,
+              sentences: converted.sentences.map(s => ({
+                id: s.id,
+                text: s.text,
+                translation: s.translation,
+                difficulty: s.difficulty
+              })),
+              supportedModules: ['reading', 'speaking'],
+              createdAt: new Date(item.created_at)
+            };
+            convertedContent.push(universalContent);
+          }
+        } else if (item.content_type === 'dialogue') {
+          const converted = convertToDialoguePracticeScenario(item);
+          if (converted) {
+            // 转换为UniversalContent格式
+            const universalContent: UniversalContent = {
+              id: converted.id,
+              title: converted.title,
+              description: converted.description,
+              contentType: 'dialogue' as const,
+              level: converted.level,
+              category: converted.category,
+              tags: [converted.category],
+              originalText: converted.conversations.map(c => c.text).join(' '),
+              translation: converted.conversations.map(c => c.translation || '').join(' '),
+              wordCount: converted.conversations.reduce((sum, c) => sum + c.text.split(' ').length, 0),
+              estimatedDuration: 15,
+              conversations: converted.conversations.map(c => ({
+                id: c.id,
+                speaker: c.speaker,
+                text: c.text,
+                translation: c.translation
+              })),
+              supportedModules: ['speaking', 'listening'],
+              createdAt: new Date(item.created_at)
+            };
+            convertedContent.push(universalContent);
+          }
+        }
+      });
+      
+      setState(prev => ({
+        ...prev,
+        dbContents: convertedContent
+      }));
+    }
+  }, [dbContent]);
 
   // 处理模块选择
   const handleModuleSelect = useCallback((module: LearningModule) => {
@@ -91,6 +163,34 @@ export function NewIntegratedLearningPage() {
       ...prev,
       selectedContent: content
     }));
+  }, []);
+
+  // 处理内容删除
+  const handleContentDelete = useCallback(async (contentId: string) => {
+    try {
+      // 提取真正的数据库ID
+      let dbId: number;
+      if (contentId.startsWith('db_dialogue_')) {
+        dbId = parseInt(contentId.replace('db_dialogue_', ''));
+      } else if (contentId.startsWith('db_')) {
+        dbId = parseInt(contentId.replace('db_', ''));
+      } else {
+        throw new Error('无效的内容ID格式');
+      }
+      
+      // 从数据库中删除
+      await learningContentService.deleteLearningContent(dbId);
+      
+      // 从本地状态中删除
+      setState(prev => ({
+        ...prev,
+        dbContents: prev.dbContents.filter(content => content.id !== contentId)
+      }));
+      
+    } catch (error) {
+      console.error('删除内容失败:', error);
+      alert('删除内容失败，请重试');
+    }
   }, []);
 
   // 返回主页
@@ -235,12 +335,14 @@ export function NewIntegratedLearningPage() {
       case 'content_browser':
         return (
           <ContentBrowser
-            contents={contentManager.getAllContent()}
+            contents={state.dbContents}
             onContentSelect={handleContentSelect}
+            onContentDelete={handleContentDelete}
             onModuleSelect={handleModuleSelect}
             showSearch={true}
             showFilters={true}
             showModuleTabs={true}
+            showDeleteButton={true}
             itemsPerPage={12}
           />
         );
@@ -308,7 +410,9 @@ export function NewIntegratedLearningPage() {
           );
         } else {
           // 显示口语练习内容列表
-          const speakingContents = contentManager.getContentByModule('speaking');
+          const speakingContents = state.dbContents.filter(content => 
+            content.supportedModules.includes('speaking')
+          );
           return (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
@@ -374,8 +478,31 @@ export function NewIntegratedLearningPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {readingContents.map(content => (
+              {dbLoading && (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2 text-muted-foreground">加载阅读内容中...</span>
+                </div>
+              )}
+
+              {dbError && (
+                <div className="text-center py-12">
+                  <p className="text-red-500 mb-4">加载阅读内容失败: {dbError}</p>
+                  <Button onClick={() => window.location.reload()}>
+                    重新加载
+                  </Button>
+                </div>
+              )}
+              
+              {!dbLoading && !dbError && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {readingContents.length === 0 ? (
+                    <div className="col-span-full text-center py-12">
+                      <p className="text-muted-foreground mb-4">暂无阅读练习内容</p>
+                      <p className="text-sm text-muted-foreground">内容正在初始化中，请稍后刷新页面</p>
+                    </div>
+                  ) : (
+                    readingContents.map(content => (
                   <Card 
                     key={content.id}
                     className="cursor-pointer hover:shadow-md transition-shadow"
@@ -397,8 +524,10 @@ export function NewIntegratedLearningPage() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           );
         }

@@ -32,6 +32,7 @@ export const DATABASE_SCHEMA = {
   LEARNING_CONTENT: `
     CREATE TABLE IF NOT EXISTS learning_content (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL DEFAULT '',
       content_type TEXT NOT NULL CHECK (content_type IN ('dialogue', 'article', 'mixed')),
       original_text TEXT NOT NULL,
       translation TEXT NOT NULL,
@@ -39,6 +40,8 @@ export const DATABASE_SCHEMA = {
       topic TEXT,
       word_count INTEGER,
       estimated_reading_time INTEGER,
+      activity_types TEXT NOT NULL DEFAULT 'reading,listening,speaking',
+      is_ai_generated BOOLEAN DEFAULT FALSE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `,
@@ -84,6 +87,24 @@ export const DATABASE_SCHEMA = {
       duration INTEGER NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+  `,
+
+  // 写作练习提示表
+  WRITING_PROMPTS: `
+    CREATE TABLE IF NOT EXISTS writing_prompts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      prompt_text TEXT NOT NULL,
+      writing_type TEXT NOT NULL CHECK (writing_type IN ('essay', 'letter', 'report', 'story', 'description', 'argument')),
+      difficulty_level TEXT NOT NULL CHECK (difficulty_level IN ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
+      topic TEXT,
+      word_count_requirement TEXT,
+      time_limit INTEGER,
+      evaluation_criteria TEXT,
+      sample_outline TEXT,
+      is_ai_generated BOOLEAN DEFAULT FALSE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `
 };
 
@@ -94,7 +115,11 @@ export const DATABASE_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_learning_records_activity ON learning_records(activity_type);',
   'CREATE INDEX IF NOT EXISTS idx_learning_records_created ON learning_records(created_at);',
   'CREATE INDEX IF NOT EXISTS idx_exam_records_type ON exam_records(exam_type);',
-  'CREATE INDEX IF NOT EXISTS idx_learning_content_type ON learning_content(content_type);'
+  'CREATE INDEX IF NOT EXISTS idx_learning_content_type ON learning_content(content_type);',
+  'CREATE INDEX IF NOT EXISTS idx_learning_content_activity_types ON learning_content(activity_types);',
+  'CREATE INDEX IF NOT EXISTS idx_learning_content_title ON learning_content(title);',
+  'CREATE INDEX IF NOT EXISTS idx_writing_prompts_type ON writing_prompts(writing_type);',
+  'CREATE INDEX IF NOT EXISTS idx_writing_prompts_level ON writing_prompts(difficulty_level);'
 ];
 
 // 触发器定义 - 自动更新updated_at字段

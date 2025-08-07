@@ -1,7 +1,7 @@
-import { 
-  EnglishLevel, 
-  LearningGoal, 
-  ContentType, 
+import {
+  EnglishLevel,
+  LearningGoal,
+  ContentType,
   ExamType,
   ContentGenerationParams,
   ExamGenerationParams,
@@ -13,7 +13,7 @@ import {
  * 负责生成各种AI任务的提示词模板
  */
 export class PromptTemplates {
-  
+
   // 英语水平描述映射
   private static readonly LEVEL_DESCRIPTIONS: Record<EnglishLevel, string> = {
     A1: '初学者水平，使用最基础的词汇和简单句型',
@@ -72,35 +72,40 @@ export class PromptTemplates {
    */
   static buildContentPrompt(params: ContentGenerationParams): string {
     const { level, goal, type, topic, wordCount } = params;
-    
+
     const levelDesc = this.LEVEL_DESCRIPTIONS[level];
     const goalDesc = this.GOAL_DESCRIPTIONS[goal];
     const typeInstruction = this.CONTENT_TYPE_INSTRUCTIONS[type];
-    
+
     // 根据内容类型确定默认字数
     const defaultWordCount = type === 'dialogue' ? '150-300个单词' : '200-400个单词';
     const targetWordCount = wordCount ? `约${wordCount}个单词` : defaultWordCount;
-    
+
     // 构建主题相关的指令
     const topicInstruction = topic ? `\n5. 主题围绕：${topic}，确保内容与主题高度相关` : '';
-    
+
     return `请为${levelDesc}的英语学习者生成${goalDesc}主题的${type === 'dialogue' ? '对话' : '文章'}内容。
 
 要求：
-1. ${typeInstruction}
-2. 内容长度：${targetWordCount}
-3. 难度适合${level}水平学习者，词汇和语法结构要符合该水平要求
-4. 语言自然流畅，符合英语母语者的表达习惯${topicInstruction}
-6. 包含实用的词汇和表达，有助于学习者在实际场景中运用
-7. 中文翻译要准确自然，帮助学习者理解内容含义
+1. 为内容创造一个简洁有吸引力的英文标题（不超过10个单词）
+2. ${typeInstruction}
+3. 内容长度：${targetWordCount}
+4. 难度适合${level}水平学习者，词汇和语法结构要符合该水平要求
+5. 语言自然流畅，符合英语母语者的表达习惯${topicInstruction}
+7. 包含实用的词汇和表达，有助于学习者在实际场景中运用
+8. 中文翻译要准确自然，帮助学习者理解内容含义
+9. 内容应支持多种练习形式：阅读、听力、口语练习
 
 请按以下JSON格式返回：
 {
+  "title": "内容标题（简洁有吸引力的英文标题）",
   "originalText": "英文原文",
   "translation": "中文翻译",
   "topic": "内容主题",
   "wordCount": 实际单词数,
-  "estimatedReadingTime": 预估阅读时间（分钟）
+  "estimatedReadingTime": 预估阅读时间（分钟）,
+  "contentType": "${type}",
+  "difficultyLevel": "${level}"
 }`;
   }
 
@@ -130,10 +135,10 @@ export class PromptTemplates {
    */
   static buildExamPrompt(params: ExamGenerationParams): string {
     const { level, examType, words, questionCount } = params;
-    
+
     const examTypeDesc = this.EXAM_TYPE_INSTRUCTIONS[examType];
     const levelDesc = this.LEVEL_DESCRIPTIONS[level];
-    
+
     // 构建单词相关的上下文
     let wordsContext = '';
     if (words && words.length > 0) {
@@ -224,9 +229,9 @@ export class PromptTemplates {
    */
   static buildPronunciationPrompt(params: PronunciationEvaluationParams): string {
     const { originalText, spokenText, word } = params;
-    
+
     const wordContext = word ? `\n重点单词：${word}（请特别关注这个单词的发音准确性）` : '';
-    
+
     return `请评估以下英语发音的准确性：
 
 原文：${originalText}
@@ -272,31 +277,31 @@ export class PromptTemplates {
 语法：现在时、过去时、简单句型
 句长：5-10个单词
 话题：日常生活、家庭、工作等基础话题`,
-      
+
       A2: `
 词汇：使用常见的2000个英语单词
 语法：完成时、将来时、简单复合句
 句长：8-15个单词
 话题：旅游、购物、健康等实用话题`,
-      
+
       B1: `
 词汇：使用中等难度的3000-4000个单词
 语法：复合句、条件句、被动语态
 句长：12-20个单词
 话题：教育、工作、文化等中级话题`,
-      
+
       B2: `
 词汇：使用较复杂的5000-6000个单词
 语法：复杂句型、虚拟语气、高级时态
 句长：15-25个单词
 话题：社会问题、科技、环境等高级话题`,
-      
+
       C1: `
 词汇：使用高级词汇7000-8000个单词
 语法：复杂语法结构、修辞手法
 句长：20-30个单词
 话题：学术、专业、抽象概念等高级话题`,
-      
+
       C2: `
 词汇：使用母语级别词汇，包括习语和俚语
 语法：所有语法结构，包括复杂的修辞技巧

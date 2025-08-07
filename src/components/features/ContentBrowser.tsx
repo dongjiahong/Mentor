@@ -9,6 +9,14 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Search, 
   Clock, 
@@ -22,7 +30,8 @@ import {
   Video,
   FileText,
   MessageSquare,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -37,11 +46,13 @@ import {
 interface ContentBrowserProps {
   contents: UniversalContent[];
   onContentSelect: (content: UniversalContent) => void;
+  onContentDelete?: (contentId: string) => void | Promise<void>;
   onModuleSelect?: (module: LearningModule) => void;
   className?: string;
   showSearch?: boolean;
   showFilters?: boolean;
   showModuleTabs?: boolean;
+  showDeleteButton?: boolean;
   itemsPerPage?: number;
 }
 
@@ -85,11 +96,13 @@ const moduleIcons = {
 export function ContentBrowser({
   contents,
   onContentSelect,
+  onContentDelete,
   onModuleSelect,
   className,
   showSearch = true,
   showFilters = true,
   showModuleTabs = true,
+  showDeleteButton = true,
   itemsPerPage = 12
 }: ContentBrowserProps) {
   const [filters, setFilters] = useState<FilterState>({
@@ -101,6 +114,13 @@ export function ContentBrowser({
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedModule, setSelectedModule] = useState<LearningModule | 'all'>('all');
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    content: UniversalContent | null;
+  }>({
+    open: false,
+    content: null
+  });
 
   // 获取所有可用的分类
   const categories = useMemo(() => {
@@ -201,6 +221,33 @@ export function ContentBrowser({
     }
   }, [onContentSelect, onModuleSelect]);
 
+  // 处理删除按钮点击
+  const handleDeleteClick = useCallback((content: UniversalContent, e: React.MouseEvent) => {
+    e.stopPropagation(); // 阻止事件冒泡，防止触发内容选择
+    setDeleteDialog({
+      open: true,
+      content
+    });
+  }, []);
+
+  // 确认删除
+  const handleDeleteConfirm = useCallback(async () => {
+    if (deleteDialog.content && onContentDelete) {
+      try {
+        await onContentDelete(deleteDialog.content.id);
+        setDeleteDialog({ open: false, content: null });
+      } catch (error) {
+        console.error('删除失败:', error);
+        // 保持对话框打开，让用户知道删除失败
+      }
+    }
+  }, [deleteDialog.content, onContentDelete]);
+
+  // 取消删除
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteDialog({ open: false, content: null });
+  }, []);
+
   // 渲染内容条目（紧凑的列表布局）
   const renderContentItem = (content: UniversalContent) => {
     const ContentTypeIcon = contentTypeIcons[content.contentType];
@@ -236,9 +283,22 @@ export function ContentBrowser({
 
               {/* 右侧信息 */}
               <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                <Badge variant="secondary" className="text-xs">
-                  {ENGLISH_LEVEL_DESCRIPTIONS[content.level]}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {ENGLISH_LEVEL_DESCRIPTIONS[content.level]}
+                  </Badge>
+                  {/* 删除按钮 */}
+                  {showDeleteButton && onContentDelete && (
+                    <button
+                      className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="删除内容"
+                      onClick={(e) => handleDeleteClick(content, e)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                
                 <div className="flex items-center text-xs text-muted-foreground">
                   <Clock className="h-3 w-3 mr-1" />
                   {content.estimatedDuration}分钟
@@ -491,6 +551,29 @@ export function ContentBrowser({
           </Button>
         </div>
       )}
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && handleDeleteCancel()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              您确定要删除内容 &quot;{deleteDialog.content?.title}&quot; 吗？
+              <br />
+              删除后无法恢复，请确认您的选择。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDeleteCancel}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

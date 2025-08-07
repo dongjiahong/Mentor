@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Bot, History, RefreshCw } from 'lucide-react'
+import { Bot, History } from 'lucide-react'
 import { AIContentGenerator } from '@/components/features/AIContentGenerator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { LearningContent } from '@/types'
 
 export default function AIGeneratorPage() {
@@ -85,54 +84,6 @@ export default function AIGeneratorPage() {
             </CardContent>
           </Card>
 
-          {/* 使用提示 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">💡 使用提示</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <div>
-                <strong>1. 选择合适的水平:</strong> 选择符合您实际英语水平的等级，AI 会据此调整词汇和语法难度。
-              </div>
-              <div>
-                <strong>2. 明确学习目标:</strong> 不同目标会影响内容的风格和词汇选择。
-              </div>
-              <div>
-                <strong>3. 具体的主题:</strong> 提供具体而清晰的主题，如&ldquo;可持续能源的发展&rdquo;比&ldquo;能源&rdquo;更好。
-              </div>
-              <div>
-                <strong>4. 合理的字数:</strong> 建议字数范围内的内容质量更高。
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 快捷操作 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">🚀 快捷操作</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/settings'}
-              >
-                <Bot className="h-4 w-4 mr-2" />
-                配置 AI 参数
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/learning-content'}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                查看所有内容
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

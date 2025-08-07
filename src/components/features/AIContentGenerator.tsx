@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, Sparkles, Loader2, FileText, MessageSquare, Layers, AlertCircle } from 'lucide-react';
+import { Bot, Sparkles, Loader2, FileText, MessageSquare, Layers, AlertCircle, BookOpen, Headphones, Mic, Edit3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -241,6 +241,14 @@ export function AIContentGenerator({ onContentGenerated, className }: AIContentG
           </CardHeader>
           
           <CardContent className="space-y-4">
+            {/* 内容标题 */}
+            {generatedContent.title && (
+              <div>
+                <h4 className="font-medium text-sm text-muted-foreground mb-1">标题</h4>
+                <h3 className="text-lg font-semibold text-foreground mb-2">{generatedContent.title}</h3>
+              </div>
+            )}
+            
             {/* 内容主题 */}
             {generatedContent.topic && (
               <div>
@@ -269,21 +277,90 @@ export function AIContentGenerator({ onContentGenerated, className }: AIContentG
               </div>
             </div>
 
+            {/* 练习类型按钮 */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium text-sm text-muted-foreground mb-3">练习类型</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2 h-12"
+                  onClick={() => {
+                    // TODO: 开启阅读练习
+                    console.log('开始阅读练习');
+                  }}
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <span>阅读</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2 h-12"
+                  onClick={() => {
+                    // TODO: 开启听力练习
+                    console.log('开始听力练习');
+                  }}
+                >
+                  <Headphones className="h-4 w-4" />
+                  <span>听力</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2 h-12"
+                  onClick={() => {
+                    // TODO: 开启口语练习
+                    console.log('开始口语练习');
+                  }}
+                >
+                  <Mic className="h-4 w-4" />
+                  <span>口语</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2 h-12"
+                  onClick={() => {
+                    // TODO: 开启写作练习
+                    console.log('开始写作练习');
+                  }}
+                >
+                  <Edit3 className="h-4 w-4" />
+                  <span>写作</span>
+                </Button>
+              </div>
+            </div>
+
             {/* 操作按钮 */}
-            <div className="flex justify-end space-x-2 pt-4 border-t">
+            <div className="flex justify-between items-center pt-4 border-t">
               <Button
                 variant="outline"
                 onClick={() => setGeneratedContent(null)}
               >
                 关闭
               </Button>
-              <Button
-                onClick={() => {
-                  navigator.clipboard.writeText(generatedContent.originalText);
-                }}
-              >
-                复制原文
-              </Button>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedContent.originalText);
+                  }}
+                >
+                  复制原文
+                </Button>
+                <Button
+                  onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify({
+                      title: generatedContent.title,
+                      originalText: generatedContent.originalText,
+                      translation: generatedContent.translation
+                    }, null, 2));
+                  }}
+                >
+                  复制全部
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

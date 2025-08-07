@@ -81,9 +81,9 @@ export class AIService implements IAIService {
     // 使用新的模板系统生成提示词
     const systemPrompt = PromptTemplates.getContentSystemPrompt();
     const userPrompt = PromptTemplates.buildContentPrompt(params);
-    
+
     try {
-      const response = await this.callChatCompletion([
+      const response = await this.callChatCompletionPrivate([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ]);
@@ -106,9 +106,9 @@ export class AIService implements IAIService {
     // 使用新的模板系统生成提示词
     const systemPrompt = PromptTemplates.getExamSystemPrompt();
     const userPrompt = PromptTemplates.buildExamPrompt(params);
-    
+
     try {
-      const response = await this.callChatCompletion([
+      const response = await this.callChatCompletionPrivate([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ]);
@@ -131,9 +131,9 @@ export class AIService implements IAIService {
     // 使用新的模板系统生成提示词
     const systemPrompt = PromptTemplates.getPronunciationSystemPrompt();
     const userPrompt = PromptTemplates.buildPronunciationPrompt(params);
-    
+
     try {
-      const response = await this.callChatCompletion([
+      const response = await this.callChatCompletionPrivate([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ]);
@@ -146,9 +146,16 @@ export class AIService implements IAIService {
   }
 
   /**
-   * 调用聊天完成API
+   * 公共的聊天完成API调用方法
    */
-  private async callChatCompletion(messages: AIMessage[]): Promise<string> {
+  public async callChatCompletion(messages: AIMessage[]): Promise<string> {
+    return this.callChatCompletionPrivate(messages);
+  }
+
+  /**
+   * 私有的聊天完成API调用方法
+   */
+  private async callChatCompletionPrivate(messages: AIMessage[]): Promise<string> {
     if (!this.config) {
       throw new Error('AI配置未设置');
     }
@@ -182,7 +189,7 @@ export class AIService implements IAIService {
   ): Promise<Response> {
     try {
       const response = await this.makeRequest(endpoint, method, body);
-      
+
       if (!response.ok) {
         // 如果是可重试的错误且还有重试次数
         if (this.isRetryableError(response.status) && retryCount < this.maxRetries) {
@@ -190,10 +197,10 @@ export class AIService implements IAIService {
           await this.sleep(delay);
           return this.makeRequestWithRetry(endpoint, method, body, retryCount + 1);
         }
-        
+
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       return response;
     } catch (error) {
       // 网络错误重试
@@ -202,7 +209,7 @@ export class AIService implements IAIService {
         await this.sleep(delay);
         return this.makeRequestWithRetry(endpoint, method, body, retryCount + 1);
       }
-      
+
       throw error;
     }
   }
@@ -222,7 +229,7 @@ export class AIService implements IAIService {
     }
 
     const url = `${currentConfig.apiUrl.replace(/\/$/, '')}${endpoint}`;
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.baseTimeout);
 
@@ -242,11 +249,11 @@ export class AIService implements IAIService {
       return response;
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('请求超时');
       }
-      
+
       throw error;
     }
   }
@@ -259,17 +266,17 @@ export class AIService implements IAIService {
   private parseContentResponse(response: string, params: ContentGenerationParams): LearningContent {
     // 使用新的验证器解析和验证内容
     const parseResult = ContentValidator.safeJsonParse(response);
-    
+
     if (!parseResult.success) {
       throw new Error(`解析AI响应失败: ${parseResult.error}`);
     }
-    
+
     const validationResult = ContentValidator.validateLearningContent(parseResult.data, params);
-    
+
     if (!validationResult.isValid) {
       throw new Error(`内容验证失败: ${validationResult.errors.join(', ')}`);
     }
-    
+
     if (!validationResult.content) {
       throw new Error('验证后的内容为空');
     }
@@ -287,17 +294,17 @@ export class AIService implements IAIService {
   private parseExamResponse(response: string, params: ExamGenerationParams): ExamQuestion[] {
     // 使用新的验证器解析和验证题目
     const parseResult = ContentValidator.safeJsonParse(response);
-    
+
     if (!parseResult.success) {
       throw new Error(`解析AI响应失败: ${parseResult.error}`);
     }
-    
+
     const validationResult = ContentValidator.validateExamQuestions(parseResult.data, params);
-    
+
     if (!validationResult.isValid) {
       throw new Error(`题目验证失败: ${validationResult.errors.join(', ')}`);
     }
-    
+
     if (!validationResult.questions) {
       throw new Error('验证后的题目为空');
     }
@@ -311,17 +318,17 @@ export class AIService implements IAIService {
   private parsePronunciationResponse(response: string): PronunciationScore {
     // 使用新的验证器解析和验证发音评分
     const parseResult = ContentValidator.safeJsonParse(response);
-    
+
     if (!parseResult.success) {
       throw new Error(`解析AI响应失败: ${parseResult.error}`);
     }
-    
+
     const validationResult = ContentValidator.validatePronunciationScore(parseResult.data);
-    
+
     if (!validationResult.isValid) {
       throw new Error(`发音评分验证失败: ${validationResult.errors.join(', ')}`);
     }
-    
+
     if (!validationResult.score) {
       throw new Error('验证后的评分为空');
     }
@@ -341,9 +348,9 @@ export class AIService implements IAIService {
    */
   private isNetworkError(error: unknown): boolean {
     if (error instanceof Error) {
-      return error.message.includes('fetch') || 
-             error.message.includes('network') ||
-             error.message.includes('timeout');
+      return error.message.includes('fetch') ||
+        error.message.includes('network') ||
+        error.message.includes('timeout');
     }
     return false;
   }
@@ -376,10 +383,10 @@ export class AIService implements IAIService {
    * 检查是否为AppError
    */
   private isAppError(error: unknown): error is AppError {
-    return error !== null && 
-           typeof error === 'object' && 
-           'type' in error && 
-           'message' in error;
+    return error !== null &&
+      typeof error === 'object' &&
+      'type' in error &&
+      'message' in error;
   }
 
   /**

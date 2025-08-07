@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const db = getDatabase()
     
     let query = 'SELECT * FROM learning_content WHERE 1=1'
-    const params: any[] = []
+    const params: (string | number)[] = []
 
     if (contentType) {
       query += ' AND content_type = ?'
@@ -43,7 +43,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { contentType, originalText, translation, difficultyLevel, topic } = body
+    const { 
+      title, 
+      contentType, 
+      originalText, 
+      translation, 
+      difficultyLevel, 
+      topic, 
+      wordCount, 
+      estimatedReadingTime, 
+      activityTypes 
+    } = body
 
     if (!contentType || !originalText || !translation || !difficultyLevel) {
       return NextResponse.json(
@@ -53,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证内容类型
-    const validTypes = ['dialogue', 'article']
+    const validTypes = ['dialogue', 'article', 'mixed']
     if (!validTypes.includes(contentType)) {
       return NextResponse.json(
         { success: false, error: '无效的内容类型' },
@@ -63,21 +73,42 @@ export async function POST(request: NextRequest) {
 
     const db = getDatabase()
     const stmt = db.prepare(`
-      INSERT INTO learning_content (content_type, original_text, translation, difficulty_level, topic)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO learning_content (
+        title, content_type, original_text, translation, difficulty_level, topic,
+        word_count, estimated_reading_time, activity_types, is_ai_generated
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     
-    const result = stmt.run(contentType, originalText, translation, difficultyLevel, topic || null)
+    // 默认的练习类型
+    const defaultActivityTypes = activityTypes || 'reading,listening,speaking'
+    
+    const result = stmt.run(
+      title || '',
+      contentType, 
+      originalText, 
+      translation, 
+      difficultyLevel, 
+      topic || null,
+      wordCount || null,
+      estimatedReadingTime || null,
+      defaultActivityTypes,
+      false  // 手动创建的内容
+    )
     
     return NextResponse.json({
       success: true,
       data: { 
-        id: result.lastInsertRowid, 
+        id: result.lastInsertRowid,
+        title,
         contentType, 
         originalText, 
         translation, 
         difficultyLevel, 
-        topic 
+        topic,
+        wordCount,
+        estimatedReadingTime,
+        activityTypes: defaultActivityTypes,
+        isAiGenerated: false
       }
     })
   } catch (error) {
@@ -103,7 +134,7 @@ export async function PUT(request: NextRequest) {
 
     // 验证内容类型
     if (contentType) {
-      const validTypes = ['dialogue', 'article']
+      const validTypes = ['dialogue', 'article', 'mixed']
       if (!validTypes.includes(contentType)) {
         return NextResponse.json(
           { success: false, error: '无效的内容类型' },
@@ -115,15 +146,26 @@ export async function PUT(request: NextRequest) {
     const db = getDatabase()
     const stmt = db.prepare(`
       UPDATE learning_content 
-      SET content_type = COALESCE(?, content_type),
+      SET title = COALESCE(?, title),
+          content_type = COALESCE(?, content_type),
           original_text = COALESCE(?, original_text),
           translation = COALESCE(?, translation),
           difficulty_level = COALESCE(?, difficulty_level),
-          topic = COALESCE(?, topic)
+          topic = COALESCE(?, topic),
+          word_count = COALESCE(?, word_count),
+          estimated_reading_time = COALESCE(?, estimated_reading_time),
+          activity_types = COALESCE(?, activity_types)
       WHERE id = ?
     `)
     
-    const result = stmt.run(contentType, originalText, translation, difficultyLevel, topic, id)
+    const { 
+      title, wordCount, estimatedReadingTime, activityTypes 
+    } = body
+    
+    const result = stmt.run(
+      title, contentType, originalText, translation, difficultyLevel, topic,
+      wordCount, estimatedReadingTime, activityTypes, id
+    )
     
     if (result.changes === 0) {
       return NextResponse.json(

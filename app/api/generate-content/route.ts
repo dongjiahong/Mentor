@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/database'
 import { AIService } from '@/services/ai/AIService'
-import { 
+import {
   ContentGenerationParams,
   AIConfig,
   ContentType,
@@ -12,13 +12,13 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { 
-      level, 
-      goal, 
-      type, 
-      topic, 
+    const {
+      level,
+      goal,
+      type,
+      topic,
       wordCount,
-      saveToDatabase = true 
+      saveToDatabase = true
     }: ContentGenerationParams & { saveToDatabase?: boolean } = body
 
     // 验证必要参数
@@ -56,10 +56,19 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDatabase()
-    
+
     // 获取AI配置
-    const aiConfigRow = db.prepare('SELECT * FROM ai_config ORDER BY created_at DESC LIMIT 1').get() as any
-    
+    const aiConfigRow = db.prepare('SELECT * FROM ai_config ORDER BY created_at DESC LIMIT 1').get() as {
+      id: number;
+      api_url: string;
+      api_key: string;
+      model_name: string;
+      temperature?: number;
+      max_tokens?: number;
+      created_at: string;
+      updated_at: string;
+    } | undefined
+
     if (!aiConfigRow) {
       return NextResponse.json(
         { success: false, error: 'AI配置未设置，请先在设置页面配置AI参数' },
@@ -81,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     // 创建AI服务实例
     const aiService = new AIService(aiConfig)
-    
+
     // 准备生成参数
     const generationParams: ContentGenerationParams = {
       level,
@@ -95,28 +104,42 @@ export async function POST(request: NextRequest) {
 
     // 调用AI生成内容
     const generatedContent = await aiService.generateContent(generationParams)
-    
-    console.log('AI生成完成:', { title: generatedContent.originalText.substring(0, 50) })
+
+    console.log('AI生成完成:', generatedContent.originalText.substring(0, 10))
 
     // 如果需要保存到数据库
     if (saveToDatabase) {
       const insertStmt = db.prepare(`
-        INSERT INTO learning_content (content_type, original_text, translation, difficulty_level, topic, word_count, estimated_reading_time)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO learning_content (
+          title, content_type, original_text, translation, difficulty_level, topic, 
+          word_count, estimated_reading_time, activity_types, is_ai_generated
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
-      
+
+      // 处理活动类型 - 转换数组为字符串
+      let activityTypes = 'reading,listening,speaking' // 默认值
+      if (generatedContent.activityTypes && Array.isArray(generatedContent.activityTypes)) {
+        activityTypes = generatedContent.activityTypes.join(',')
+      } else if (generatedContent.activityTypes && typeof generatedContent.activityTypes === 'string') {
+        activityTypes = generatedContent.activityTypes
+      }
+
+      // 确保所有参数都是SQLite兼容的基础数据类型
       const result = insertStmt.run(
-        generatedContent.contentType,
-        generatedContent.originalText,
-        generatedContent.translation,
-        generatedContent.difficultyLevel,
-        generatedContent.topic,
-        generatedContent.wordCount,
-        generatedContent.estimatedReadingTime
+        String(generatedContent.title || ''),
+        String(generatedContent.contentType),
+        String(generatedContent.originalText),
+        String(generatedContent.translation),
+        String(generatedContent.difficultyLevel),
+        generatedContent.topic ? String(generatedContent.topic) : null,
+        typeof generatedContent.wordCount === 'number' ? generatedContent.wordCount : null,
+        typeof generatedContent.estimatedReadingTime === 'number' ? generatedContent.estimatedReadingTime : null,
+        activityTypes,
+        1  // SQLite布尔值用1表示true
       )
 
       generatedContent.id = result.lastInsertRowid as number
-      
+
       console.log('内容已保存到数据库，ID:', generatedContent.id)
     }
 
@@ -128,7 +151,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('生成内容失败:', error)
-    
+
     // 处理不同类型的错误
     let errorMessage = '生成内容失败'
     let statusCode = 500
@@ -165,9 +188,9 @@ export async function GET(request: NextRequest) {
     const difficultyLevel = searchParams.get('difficulty_level')
 
     const db = getDatabase()
-    
+
     let query = 'SELECT * FROM learning_content WHERE 1=1'
-    const params: any[] = []
+    const params: (string | number)[] = []
 
     if (contentType) {
       query += ' AND content_type = ?'
@@ -184,11 +207,11 @@ export async function GET(request: NextRequest) {
 
     const stmt = db.prepare(query)
     const contents = stmt.all(...params)
-    
+
     // 获取总数
     let countQuery = 'SELECT COUNT(*) as total FROM learning_content WHERE 1=1'
-    const countParams: any[] = []
-    
+    const countParams: (string | number)[] = []
+
     if (contentType) {
       countQuery += ' AND content_type = ?'
       countParams.push(contentType)

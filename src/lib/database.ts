@@ -59,25 +59,55 @@ function initializeDatabase(database: Database.Database) {
 
 function upgradeDatabase(database: Database.Database) {
   try {
-    // 检查ai_config表是否存在temperature列
-    const tableInfo = database.pragma('table_info(ai_config)')
-    const columns = tableInfo.map((col: any) => col.name)
-    
-    if (tableInfo.length > 0 && !columns.includes('temperature')) {
-      console.log('检测到旧版ai_config表，开始升级...')
+    // 升级ai_config表
+    try {
+      const aiConfigInfo = database.pragma('table_info(ai_config)')
+      const aiConfigColumns = aiConfigInfo.map((col: any) => col.name)
       
-      // 添加缺失的列
-      database.exec('ALTER TABLE ai_config ADD COLUMN temperature REAL DEFAULT 0.7')
-      database.exec('ALTER TABLE ai_config ADD COLUMN max_tokens INTEGER DEFAULT 2000')
+      if (aiConfigInfo.length > 0 && !aiConfigColumns.includes('temperature')) {
+        console.log('检测到旧版ai_config表，开始升级...')
+        database.exec('ALTER TABLE ai_config ADD COLUMN temperature REAL DEFAULT 0.7')
+        database.exec('ALTER TABLE ai_config ADD COLUMN max_tokens INTEGER DEFAULT 2000')
+        console.log('ai_config表升级完成')
+      }
+    } catch (error) {
+      if (!error.message.includes('no such table')) {
+        console.error('升级ai_config表失败:', error)
+      }
+    }
+
+    // 升级learning_content表
+    try {
+      const learningContentInfo = database.pragma('table_info(learning_content)')
+      const learningContentColumns = learningContentInfo.map((col: any) => col.name)
       
-      console.log('ai_config表升级完成')
+      if (learningContentInfo.length > 0) {
+        console.log('检测到learning_content表，检查是否需要升级...')
+        
+        if (!learningContentColumns.includes('title')) {
+          database.exec('ALTER TABLE learning_content ADD COLUMN title TEXT NOT NULL DEFAULT ""')
+          console.log('已添加title字段')
+        }
+        
+        if (!learningContentColumns.includes('activity_types')) {
+          database.exec('ALTER TABLE learning_content ADD COLUMN activity_types TEXT NOT NULL DEFAULT "reading,listening,speaking"')
+          console.log('已添加activity_types字段')
+        }
+        
+        if (!learningContentColumns.includes('is_ai_generated')) {
+          database.exec('ALTER TABLE learning_content ADD COLUMN is_ai_generated BOOLEAN DEFAULT FALSE')
+          console.log('已添加is_ai_generated字段')
+        }
+        
+        console.log('learning_content表升级完成')
+      }
+    } catch (error) {
+      if (!error.message.includes('no such table')) {
+        console.error('升级learning_content表失败:', error)
+      }
     }
   } catch (error) {
     console.error('数据库升级失败:', error)
-    // 如果是表不存在的错误，可以忽略，因为后续会创建新表
-    if (!error.message.includes('no such table')) {
-      throw error
-    }
   }
 }
 

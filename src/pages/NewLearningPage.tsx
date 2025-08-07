@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 
 import { 
   LearningModeSelector, 
@@ -22,105 +22,9 @@ import {
   getPracticeDataByMode 
 } from '@/data/voicePracticeData';
 
-// 文本阅读练习内容数据 - 统一格式
-const readingPracticeContents: VoicePracticeContent[] = [
-  {
-    id: 'reading_1',
-    title: '科技与生活',
-    description: '了解科技如何改变我们的日常生活',
-    level: 'B1',
-    category: '科技话题',
-    practiceType: 'reading_comprehension',
-    estimatedDuration: 8,
-    sentences: [
-      {
-        id: 'reading_1_1',
-        text: 'Technology has revolutionized the way we live, work, and communicate in the modern world.',
-        translation: '技术已经彻底改变了我们在现代世界中生活、工作和交流的方式。',
-        difficulty: 3,
-        tips: '注意 "revolutionized" 的发音和含义'
-      },
-      {
-        id: 'reading_1_2',
-        text: 'Smartphones have become essential tools that connect us to information and people instantly.',
-        translation: '智能手机已成为连接我们与信息和人们的重要工具。',
-        difficulty: 2,
-        tips: '"essential" 表示必不可少的'
-      },
-      {
-        id: 'reading_1_3',
-        text: 'Social media platforms allow us to share experiences and stay connected with friends worldwide.',
-        translation: '社交媒体平台让我们能够分享经历并与世界各地的朋友保持联系。',
-        difficulty: 2,
-        tips: '"platforms" 在此处指平台、载体'
-      }
-    ]
-  },
-  {
-    id: 'reading_2',
-    title: '环保与可持续发展',
-    description: '探讨环境保护和可持续发展的重要性',
-    level: 'B2',
-    category: '环境话题',
-    practiceType: 'reading_comprehension',
-    estimatedDuration: 10,
-    sentences: [
-      {
-        id: 'reading_2_1',
-        text: 'Climate change is one of the most pressing challenges facing humanity in the 21st century.',
-        translation: '气候变化是21世纪人类面临的最紧迫挑战之一。',
-        difficulty: 3,
-        tips: '"pressing" 表示紧急的、迫切的'
-      },
-      {
-        id: 'reading_2_2',
-        text: 'Renewable energy sources like solar and wind power offer sustainable alternatives to fossil fuels.',
-        translation: '太阳能和风能等可再生能源为化石燃料提供了可持续的替代选择。',
-        difficulty: 4,
-        tips: '注意 "renewable" 和 "sustainable" 的区别'
-      },
-      {
-        id: 'reading_2_3',
-        text: 'Individual actions, such as recycling and reducing consumption, can make a significant impact.',
-        translation: '个人行动，如回收和减少消费，可以产生重大影响。',
-        difficulty: 3,
-        tips: '"consumption" 指消费、使用量'
-      }
-    ]
-  },
-  {
-    id: 'reading_3',
-    title: '健康生活方式',
-    description: '学习关于健康生活方式的英语表达',
-    level: 'A2',
-    category: '健康话题',
-    practiceType: 'reading_comprehension',
-    estimatedDuration: 6,
-    sentences: [
-      {
-        id: 'reading_3_1',
-        text: 'Regular exercise is essential for maintaining good physical and mental health.',
-        translation: '定期锻炼对保持良好的身心健康至关重要。',
-        difficulty: 2,
-        tips: '"maintaining" 表示保持、维持'
-      },
-      {
-        id: 'reading_3_2',
-        text: 'A balanced diet with plenty of fruits and vegetables provides the nutrients our body needs.',
-        translation: '富含水果和蔬菜的均衡饮食为我们的身体提供所需的营养。',
-        difficulty: 2,
-        tips: '"nutrients" 指营养成分'
-      },
-      {
-        id: 'reading_3_3',
-        text: 'Getting enough sleep is crucial for recovery and overall well-being.',
-        translation: '充足的睡眠对恢复和整体健康至关重要。',
-        difficulty: 2,
-        tips: '"well-being" 表示健康、幸福感'
-      }
-    ]
-  }
-];
+import { useLearningContent } from '@/hooks/useLearningContent';
+import { convertToVoicePracticeContent, convertToDialoguePracticeScenario } from '@/utils/contentConverter';
+
 
 interface LearningPageState {
   selectedMode: VoiceLearningMode | null;
@@ -138,6 +42,9 @@ export function NewLearningPage() {
     currentPage: 1,
     itemsPerPage: 6 // 每页显示6个内容
   });
+
+  // 从数据库获取学习内容
+  const { content: dbContent, loading: dbLoading, error: dbError } = useLearningContent();
 
   // 处理模式选择
   const handleModeSelect = useCallback((mode: VoiceLearningMode) => {
@@ -184,18 +91,44 @@ export function NewLearningPage() {
     if (!state.selectedMode) return [];
     
     switch (state.selectedMode) {
-      case 'reading':
-        return readingPracticeContents;
+      case 'reading': {
+        // 将数据库内容转换为阅读练习格式
+        const readingContents: VoicePracticeContent[] = [];
+        
+        dbContent.forEach(item => {
+          if (item.content_type === 'article' || item.content_type === 'mixed') {
+            const converted = convertToVoicePracticeContent(item);
+            if (converted) {
+              readingContents.push(converted);
+            }
+          }
+        });
+        
+        return readingContents;
+      }
+      case 'dialogue_practice': {
+        // 将数据库内容转换为对话练习格式
+        const dialogueContents: DialoguePracticeScenario[] = [...dialoguePracticeScenarios];
+        
+        dbContent.forEach(item => {
+          if (item.content_type === 'dialogue') {
+            const converted = convertToDialoguePracticeScenario(item);
+            if (converted) {
+              dialogueContents.push(converted);
+            }
+          }
+        });
+        
+        return dialogueContents;
+      }
       case 'follow_along':
         return followAlongPractices;
-      case 'dialogue_practice':
-        return dialoguePracticeScenarios;
       case 'listening_comprehension':
         return listeningComprehensionPractices;
       default:
         return followAlongPractices;
     }
-  }, [state.selectedMode]);
+  }, [state.selectedMode, dbContent]);
 
   // 分页数据计算
   const paginationData = useMemo(() => {
@@ -262,9 +195,34 @@ export function NewLearningPage() {
           </div>
         </div>
 
+        {/* 加载状态 */}
+        {dbLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">加载学习内容中...</span>
+          </div>
+        )}
+
+        {/* 错误状态 */}
+        {dbError && (
+          <div className="text-center py-12">
+            <p className="text-red-500 mb-4">加载学习内容失败: {dbError}</p>
+            <Button onClick={() => window.location.reload()}>
+              重新加载
+            </Button>
+          </div>
+        )}
+
         {/* 内容列表 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {paginatedContent.map((content, index) => (
+        {!dbLoading && !dbError && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {paginatedContent.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-muted-foreground mb-4">暂无{state.selectedMode === 'reading' ? '阅读' : '对话'}练习内容</p>
+                <p className="text-sm text-muted-foreground">请尝试选择其他学习模式</p>
+              </div>
+            ) : (
+              paginatedContent.map((content, index) => (
             <Card 
               key={content.id || index}
               className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50"
@@ -276,7 +234,7 @@ export function NewLearningPage() {
                     <h3 className="font-semibold text-lg">{content.title}</h3>
                     <div className="text-right">
                       <div className="text-sm font-medium text-primary">
-                        {'level' in content ? content.level : content.difficultyLevel}
+                        {'level' in content ? content.level : ('difficultyLevel' in content ? (content as any).difficultyLevel : 'B1')}
                       </div>
                       {('category' in content) && (
                         <div className="text-xs text-muted-foreground">
@@ -310,11 +268,13 @@ export function NewLearningPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* 分页控件 */}
-        {totalPages > 1 && (
+        {!dbLoading && !dbError && totalPages > 1 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               显示 {startIndex + 1}-{Math.min(startIndex + state.itemsPerPage, totalItems)} / {totalItems} 个内容

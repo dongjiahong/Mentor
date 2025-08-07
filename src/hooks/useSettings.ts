@@ -56,12 +56,39 @@ export function useSettings() {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      await storageService.initialize();
-      
-      const [userProfile, aiConfig] = await Promise.all([
-        storageService.getUserProfile(),
-        storageService.getAIConfig()
+      // 从后端API加载用户配置和AI配置
+      const [userProfileResponse, aiConfigResponse] = await Promise.all([
+        fetch('/api/user-profile').then(res => res.json().catch(() => ({ success: false }))),
+        fetch('/api/ai-config').then(res => res.json().catch(() => ({ success: false })))
       ]);
+
+      let userProfile: UserProfile | null = null;
+      let aiConfig: AIConfig | null = null;
+
+      // 处理用户配置响应
+      if (userProfileResponse.success && userProfileResponse.data) {
+        userProfile = {
+          id: userProfileResponse.data.id,
+          englishLevel: userProfileResponse.data.english_level,
+          learningGoal: userProfileResponse.data.learning_goal,
+          createdAt: new Date(userProfileResponse.data.created_at),
+          updatedAt: new Date(userProfileResponse.data.updated_at)
+        };
+      }
+
+      // 处理AI配置响应
+      if (aiConfigResponse.success && aiConfigResponse.data) {
+        aiConfig = {
+          id: aiConfigResponse.data.id,
+          apiUrl: aiConfigResponse.data.api_url,
+          apiKey: aiConfigResponse.data.api_key,
+          modelName: aiConfigResponse.data.model_name,
+          temperature: aiConfigResponse.data.temperature,
+          maxTokens: aiConfigResponse.data.max_tokens,
+          createdAt: new Date(aiConfigResponse.data.created_at),
+          updatedAt: new Date(aiConfigResponse.data.updated_at)
+        };
+      }
 
       setState(prev => ({
         ...prev,
@@ -71,17 +98,15 @@ export function useSettings() {
       }));
 
       // 更新表单数据
-      if (userProfile || aiConfig) {
-        setFormData({
-          englishLevel: userProfile?.englishLevel || 'A1',
-          learningGoal: userProfile?.learningGoal || 'daily_conversation',
-          apiUrl: aiConfig?.apiUrl || 'https://api-inference.modelscope.cn/v1/',
-          apiKey: aiConfig?.apiKey || '',
-          modelName: aiConfig?.modelName || 'Qwen/Qwen3-235B-A22B-Instruct-2507',
-          temperature: aiConfig?.temperature || 0.7,
-          maxTokens: aiConfig?.maxTokens || 2000
-        });
-      }
+      setFormData({
+        englishLevel: userProfile?.englishLevel || 'B1',
+        learningGoal: userProfile?.learningGoal || 'daily_conversation',
+        apiUrl: aiConfig?.apiUrl || 'https://api-inference.modelscope.cn/v1/',
+        apiKey: aiConfig?.apiKey || '',
+        modelName: aiConfig?.modelName || 'Qwen/Qwen3-235B-A22B-Instruct-2507',
+        temperature: aiConfig?.temperature || 0.7,
+        maxTokens: aiConfig?.maxTokens || 2000
+      });
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -115,23 +140,70 @@ export function useSettings() {
         return false;
       }
 
-      // 保存用户配置
-      const userProfile = await storageService.saveUserProfile({
-        englishLevel: formData.englishLevel,
-        learningGoal: formData.learningGoal
+      // 保存用户配置到后端API
+      const userProfileResponse = await fetch('/api/user-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          englishLevel: formData.englishLevel,
+          learningGoal: formData.learningGoal
+        })
       });
 
-      // 保存AI配置
-      const aiConfig = await storageService.saveAIConfig({
+      if (!userProfileResponse.ok) {
+        throw new Error('保存用户配置失败');
+      }
+
+      const userProfileResult = await userProfileResponse.json();
+      if (!userProfileResult.success) {
+        throw new Error(userProfileResult.error || '保存用户配置失败');
+      }
+
+      // 保存AI配置到后端API
+      const aiConfigResponse = await fetch('/api/ai-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiUrl: formData.apiUrl,
+          apiKey: formData.apiKey,
+          modelName: formData.modelName,
+          temperature: formData.temperature,
+          maxTokens: formData.maxTokens
+        })
+      });
+
+      if (!aiConfigResponse.ok) {
+        throw new Error('保存AI配置失败');
+      }
+
+      const aiConfigResult = await aiConfigResponse.json();
+      if (!aiConfigResult.success) {
+        throw new Error(aiConfigResult.error || '保存AI配置失败');
+      }
+
+      // 构建配置对象
+      const userProfile: UserProfile = {
+        id: userProfileResult.data.id,
+        englishLevel: formData.englishLevel,
+        learningGoal: formData.learningGoal,
+        createdAt: new Date(userProfileResult.data.createdAt || Date.now()),
+        updatedAt: new Date()
+      };
+
+      const aiConfig: AIConfig = {
+        id: aiConfigResult.data.id,
         apiUrl: formData.apiUrl,
         apiKey: formData.apiKey,
         modelName: formData.modelName,
-        temperature: formData.temperature,
-        maxTokens: formData.maxTokens
-      });
-
-      // 保存到持久化存储
-      storageService.save();
+        temperature: formData.temperature || 0.7,
+        maxTokens: formData.maxTokens || 2000,
+        createdAt: new Date(aiConfigResult.data.createdAt || Date.now()),
+        updatedAt: new Date()
+      };
 
       setState(prev => ({
         ...prev,
@@ -148,7 +220,7 @@ export function useSettings() {
         isLoading: false,
         error: new AppError({
           type: ErrorType.DATABASE_ERROR,
-          message: '保存设置失败',
+          message: error instanceof Error ? error.message : '保存设置失败',
           details: error
         })
       }));

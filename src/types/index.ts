@@ -104,6 +104,7 @@ export interface AIConfig {
 // 学习内容接口
 export interface LearningContent {
   id: number;
+  title?: string;            // 标题
   contentType: ContentType;
   originalText: string;
   translation: string;
@@ -111,6 +112,8 @@ export interface LearningContent {
   topic?: string;
   wordCount?: number;        // 单词数量
   estimatedReadingTime?: number; // 预估阅读时间（分钟）
+  activityTypes?: string[];  // 支持的练习类型（reading,listening,speaking,writing）
+  isAiGenerated?: boolean;   // 是否AI生成
   createdAt: Date;
 }
 
@@ -976,6 +979,16 @@ export const LEARNING_MODULE_DESCRIPTIONS = {
     color: 'from-pink-500 to-pink-600'
   }
 } as const;
+
+// 写作类型描述
+export const WRITING_TYPE_DESCRIPTIONS = {
+  'essay': '论述文',
+  'letter': '书信',
+  'report': '报告',
+  'story': '故事',
+  'description': '描述文',
+  'argument': '论证文'
+};
 
 // 写作练习类型描述
 export const WRITING_PRACTICE_TYPE_DESCRIPTIONS = {
