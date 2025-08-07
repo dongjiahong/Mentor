@@ -32,6 +32,7 @@ import {
 // 移除内存数据导入，统一使用数据库数据源
 // import { writingContents, listeningContents, readingContents } from '@/services/content/SampleContentData';
 import { learningContentService } from '@/services/learning-content/LearningContentService';
+import { writingPromptsService } from '@/services/writing-prompts/WritingPromptsService';
 import { useLearningContent } from '@/hooks/useLearningContent';
 import { useWritingPrompts } from '@/hooks/useWritingPrompts';
 import { convertToVoicePracticeContent, convertToDialoguePracticeScenario } from '@/utils/contentConverter';
@@ -77,7 +78,7 @@ export function NewIntegratedLearningPage() {
   const { content: dbContent, loading: dbLoading, error: dbError } = useLearningContent();
   
   // 从数据库获取写作提示
-  const { prompts: writingPrompts, loading: writingLoading, error: writingError } = useWritingPrompts();
+  const { prompts: writingPrompts, loading: writingLoading, error: writingError, refetch: refetchWritingPrompts } = useWritingPrompts();
   
   // 处理URL参数，支持从AI生成器跳转过来
   useEffect(() => {
@@ -293,8 +294,12 @@ export function NewIntegratedLearningPage() {
       // 处理写作提示的删除
       if (contentId.startsWith('writing_prompt_')) {
         const promptId = parseInt(contentId.replace('writing_prompt_', ''));
-        // TODO: 实现写作提示的删除服务
-        // await writingPromptsService.deleteWritingPrompt(promptId);
+        
+        // 从数据库中删除写作提示
+        await writingPromptsService.deleteWritingPrompt(promptId);
+        
+        // 重新获取写作提示数据
+        await refetchWritingPrompts();
         
         // 从本地状态中删除
         setState(prev => ({
@@ -327,7 +332,7 @@ export function NewIntegratedLearningPage() {
       console.error('删除内容失败:', error);
       alert('删除内容失败，请重试');
     }
-  }, []);
+  }, [refetchWritingPrompts]);
 
   // 返回主页
   const handleBackToHome = useCallback(() => {

@@ -256,89 +256,77 @@ export function ContentBrowser({
     return (
       <div 
         key={content.id}
-        className="group cursor-pointer hover:bg-accent/50 border rounded-lg p-4 transition-all hover:border-primary/50"
+        className="group cursor-pointer hover:bg-accent/50 border rounded-lg p-3 transition-all hover:border-primary/50"
         onClick={() => onContentSelect(content)}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* 内容类型图标 */}
           <div className={cn(
-            "p-2 rounded-lg bg-gradient-to-br text-white flex-shrink-0",
+            "p-1.5 rounded-md bg-gradient-to-br text-white flex-shrink-0",
             typeColor
           )}>
-            <ContentTypeIcon className="h-4 w-4" />
+            <ContentTypeIcon className="h-3.5 w-3.5" />
           </div>
 
           {/* 主要内容信息 */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-base line-clamp-1 group-hover:text-primary transition-colors">
+                <h3 className="font-medium text-sm line-clamp-1 group-hover:text-primary transition-colors">
                   {content.title}
                 </h3>
-                <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                   {content.description}
                 </p>
-                
               </div>
 
-              {/* 右侧信息 */}
-              <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    {ENGLISH_LEVEL_DESCRIPTIONS[content.level]}
-                  </Badge>
-                  {/* 删除按钮 */}
-                  {showDeleteButton && onContentDelete && (
-                    <button
-                      className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      title="删除内容"
-                      onClick={(e) => handleDeleteClick(content, e)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+              {/* 右侧信息 - 水平布局 */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* 难度等级 */}
+                <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                  {content.level}
+                </Badge>
                 
+                {/* 时长 */}
                 <div className="flex items-center text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {content.estimatedDuration}分钟
+                  <Clock className="h-3 w-3 mr-0.5" />
+                  {content.estimatedDuration}min
                 </div>
 
                 {/* 媒体类型指示器 */}
                 <div className="flex items-center gap-1">
-                  {content.audioUrl && (
-                    <div title="包含音频">
-                      <Volume2 className="h-3 w-3 text-green-600" />
-                    </div>
-                  )}
-                  {content.videoUrl && (
-                    <div title="包含视频">
-                      <Video className="h-3 w-3 text-purple-600" />
-                    </div>
-                  )}
-                  {content.imageUrl && (
-                    <div title="包含图片">
-                      <Image className="h-3 w-3 text-pink-600" />
-                    </div>
-                  )}
+                  {content.audioUrl && <Volume2 className="h-3 w-3 text-green-600" title="音频" />}
+                  {content.videoUrl && <Video className="h-3 w-3 text-purple-600" title="视频" />}
+                  {content.imageUrl && <Image className="h-3 w-3 text-pink-600" title="图片" />}
                 </div>
 
-                {/* 支持的模块（放大的可点击跳转图标） */}
-                <div className="flex items-center gap-2">
+                {/* 支持的模块 */}
+                <div className="flex items-center gap-1">
                   {content.supportedModules.map(module => {
                     const ModuleIcon = moduleIcons[module];
                     return (
                       <button
                         key={module}
-                        className="p-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 hover:scale-110 transition-all border border-primary/20 hover:border-primary/40"
+                        className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105 transition-all border border-primary/20 hover:border-primary/40"
                         title={`跳转到${LEARNING_MODULE_DESCRIPTIONS[module].title}`}
                         onClick={(e) => handleModuleIconClick(module, content, e)}
                       >
-                        <ModuleIcon className="h-5 w-5" />
+                        <ModuleIcon className="h-3.5 w-3.5" />
                       </button>
                     );
                   })}
                 </div>
+
+                {/* 删除按钮 */}
+                {showDeleteButton && onContentDelete && (
+                  <button
+                    className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="删除内容"
+                    onClick={(e) => handleDeleteClick(content, e)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
