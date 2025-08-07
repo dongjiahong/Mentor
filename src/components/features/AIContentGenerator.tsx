@@ -218,7 +218,7 @@ export function AIContentGenerator({ onContentGenerated, className }: AIContentG
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4 mr-2" />
+                  <Bot className="h-4 w-4 mr-2" />
                   生成学习内容
                 </>
               )}
@@ -286,8 +286,11 @@ export function AIContentGenerator({ onContentGenerated, className }: AIContentG
                   size="sm"
                   className="flex items-center space-x-2 h-12"
                   onClick={() => {
-                    // TODO: 开启阅读练习
-                    console.log('开始阅读练习');
+                    // 跳转到阅读练习页面，并传递当前内容ID
+                    const url = new URL('/learning-integrated', window.location.origin);
+                    url.searchParams.set('module', 'reading');
+                    url.searchParams.set('contentId', generatedContent.id?.toString() || '');
+                    window.location.href = url.toString();
                   }}
                 >
                   <BookOpen className="h-4 w-4" />
@@ -298,8 +301,11 @@ export function AIContentGenerator({ onContentGenerated, className }: AIContentG
                   size="sm"
                   className="flex items-center space-x-2 h-12"
                   onClick={() => {
-                    // TODO: 开启听力练习
-                    console.log('开始听力练习');
+                    // 跳转到听力练习页面，并传递当前内容ID
+                    const url = new URL('/learning-integrated', window.location.origin);
+                    url.searchParams.set('module', 'listening');
+                    url.searchParams.set('contentId', generatedContent.id?.toString() || '');
+                    window.location.href = url.toString();
                   }}
                 >
                   <Headphones className="h-4 w-4" />
@@ -310,8 +316,11 @@ export function AIContentGenerator({ onContentGenerated, className }: AIContentG
                   size="sm"
                   className="flex items-center space-x-2 h-12"
                   onClick={() => {
-                    // TODO: 开启口语练习
-                    console.log('开始口语练习');
+                    // 跳转到口语练习页面，并传递当前内容ID
+                    const url = new URL('/learning', window.location.origin);
+                    url.searchParams.set('mode', 'follow_along');
+                    url.searchParams.set('contentId', generatedContent.id?.toString() || '');
+                    window.location.href = url.toString();
                   }}
                 >
                   <Mic className="h-4 w-4" />
@@ -322,8 +331,11 @@ export function AIContentGenerator({ onContentGenerated, className }: AIContentG
                   size="sm"
                   className="flex items-center space-x-2 h-12"
                   onClick={() => {
-                    // TODO: 开启写作练习
-                    console.log('开始写作练习');
+                    // 跳转到写作练习页面，并传递当前内容ID
+                    const url = new URL('/learning-integrated', window.location.origin);
+                    url.searchParams.set('module', 'writing');
+                    url.searchParams.set('contentId', generatedContent.id?.toString() || '');
+                    window.location.href = url.toString();
                   }}
                 >
                   <Edit3 className="h-4 w-4" />

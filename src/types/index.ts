@@ -234,6 +234,13 @@ export interface UniversalContent {
   estimatedDuration: number; // 预估学习时间（分钟）
   sentences?: ContentSentence[];     // 句子列表
   conversations?: ContentDialogue[]; // 对话列表
+  writingPrompt?: {                  // 写作提示信息
+    prompt: string;
+    wordLimit?: number;
+    timeLimit?: number;
+    evaluationCriteria?: string;
+    sampleOutline?: string;
+  };
   metadata?: Record<string, unknown>; // 扩展元数据
   supportedModules: LearningModule[]; // 支持的学习模块
   createdAt: Date;
@@ -285,6 +292,8 @@ export interface WritingPracticeContent {
   keywords?: string[];       // 关键词提示
   estimatedDuration: number; // 预估时间
   difficulty: number;        // 难度等级 1-5
+  evaluationCriteria?: string; // AI生成的评价标准 (JSON格式)
+  sampleOutline?: string;    // AI生成的写作大纲建议
 }
 
 // 写作评分标准接口

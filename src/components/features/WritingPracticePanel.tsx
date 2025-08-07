@@ -499,6 +499,80 @@ export function WritingPracticePanel({
               </div>
             )}
 
+            {/* 评价标准 */}
+            {content.evaluationCriteria && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium">评价标准:</span>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-sm text-blue-800">
+                    {(() => {
+                      try {
+                        const criteria = JSON.parse(content.evaluationCriteria);
+                        return (
+                          <div className="grid gap-3">
+                            {Object.entries(criteria).map(([key, value]: [string, unknown], index: number) => (
+                              <div key={`writing-criteria-${key}-${index}`} className="flex flex-col">
+                                <div className="font-medium text-blue-900 mb-1">{key}:</div>
+                                <div className="text-blue-700 pl-3 border-l-2 border-blue-300">{String(value)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      } catch {
+                        return <div className="whitespace-pre-line">{content.evaluationCriteria}</div>;
+                      }
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 写作大纲建议 */}
+            {content.sampleOutline && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium">写作大纲建议:</span>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-sm text-green-800">
+                    {(() => {
+                      try {
+                        const outlineObj = JSON.parse(content.sampleOutline);
+                        return (
+                          <div className="space-y-4">
+                            {Object.entries(outlineObj).map(([section, content], index) => (
+                              <div key={`outline-section-${section}`} className="border-l-3 border-green-400 pl-4 py-2">
+                                <div className="font-semibold text-green-900 mb-2 flex items-center">
+                                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-3">
+                                    {index + 1}
+                                  </span>
+                                  {section}
+                                </div>
+                                <div className="text-green-700 ml-7 text-sm leading-relaxed">
+                                  {String(content)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      } catch (error) {
+                        // 兜底显示，虽然现在应该都是对象格式了
+                        return (
+                          <div className="text-green-700 whitespace-pre-line">
+                            {content.sampleOutline}
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 参考答案 */}
             {content.sampleAnswer && (
               <div>
@@ -704,23 +778,6 @@ export function WritingPracticePanel({
         </Card>
       )}
 
-      {/* 写作技巧提示 */}
-      <Card className="border-yellow-200 bg-yellow-50">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <Lightbulb className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div className="space-y-2">
-              <p className="font-medium text-yellow-800">写作小贴士:</p>
-              <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
-                <li>开始写作前先列出要点大纲</li>
-                <li>使用多样的连接词让文章更连贯</li>
-                <li>每段只表达一个主要观点</li>
-                <li>写作完成后仔细检查语法和拼写</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -14,13 +14,14 @@ import {
   DialoguePracticeScenario
 } from '@/types';
 
-import { 
-  followAlongPractices, 
-  dialoguePracticeScenarios, 
-  wordPronunciationPractices,
-  listeningComprehensionPractices,
-  getPracticeDataByMode 
-} from '@/data/voicePracticeData';
+// 移除内存数据导入，统一使用数据库数据源
+// import { 
+//   followAlongPractices, 
+//   dialoguePracticeScenarios, 
+//   wordPronunciationPractices,
+//   listeningComprehensionPractices,
+//   getPracticeDataByMode 
+// } from '@/data/voicePracticeData';
 
 import { useLearningContent } from '@/hooks/useLearningContent';
 import { convertToVoicePracticeContent, convertToDialoguePracticeScenario } from '@/utils/contentConverter';
@@ -45,6 +46,25 @@ export function NewLearningPage() {
 
   // 从数据库获取学习内容
   const { content: dbContent, loading: dbLoading, error: dbError } = useLearningContent();
+  
+  // 处理URL参数，支持从AI生成器跳转过来
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode') as VoiceLearningMode | null;
+    // const contentId = urlParams.get('contentId'); // 暂时不使用，后续可能需要
+    
+    if (mode && ['follow_along', 'dialogue_practice', 'listening_comprehension'].includes(mode)) {
+      // 设置模式
+      setState(prev => ({
+        ...prev,
+        selectedMode: mode,
+        currentView: 'content_selection'
+      }));
+      
+      // 清除URL参数，避免页面刷新时重复跳转
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   // 处理模式选择
   const handleModeSelect = useCallback((mode: VoiceLearningMode) => {
@@ -108,7 +128,7 @@ export function NewLearningPage() {
       }
       case 'dialogue_practice': {
         // 将数据库内容转换为对话练习格式
-        const dialogueContents: DialoguePracticeScenario[] = [...dialoguePracticeScenarios];
+        const dialogueContents: DialoguePracticeScenario[] = [];
         
         dbContent.forEach(item => {
           if (item.content_type === 'dialogue') {
@@ -121,12 +141,49 @@ export function NewLearningPage() {
         
         return dialogueContents;
       }
-      case 'follow_along':
-        return followAlongPractices;
-      case 'listening_comprehension':
-        return listeningComprehensionPractices;
-      default:
-        return followAlongPractices;
+      case 'follow_along': {
+        // 跟读练习：使用数据库中的文章和混合内容
+        const followContents: VoicePracticeContent[] = [];
+        
+        dbContent.forEach(item => {
+          if (item.content_type === 'article' || item.content_type === 'mixed') {
+            const converted = convertToVoicePracticeContent(item);
+            if (converted) {
+              followContents.push(converted);
+            }
+          }
+        });
+        
+        return followContents;
+      }
+      case 'listening_comprehension': {
+        // 听力理解：使用数据库中的所有内容
+        const listeningContents: VoicePracticeContent[] = [];
+        
+        dbContent.forEach(item => {
+          const converted = convertToVoicePracticeContent(item);
+          if (converted) {
+            listeningContents.push(converted);
+          }
+        });
+        
+        return listeningContents;
+      }
+      default: {
+        // 默认返回跟读练习内容
+        const defaultContents: VoicePracticeContent[] = [];
+        
+        dbContent.forEach(item => {
+          if (item.content_type === 'article' || item.content_type === 'mixed') {
+            const converted = convertToVoicePracticeContent(item);
+            if (converted) {
+              defaultContents.push(converted);
+            }
+          }
+        });
+        
+        return defaultContents;
+      }
     }
   }, [state.selectedMode, dbContent]);
 

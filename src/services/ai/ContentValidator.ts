@@ -71,6 +71,7 @@ export class ContentValidator {
       isValid: errors.length === 0,
       errors,
       content: errors.length === 0 ? {
+        title: data.title,
         contentType: params.type,
         originalText: data.originalText,
         translation: data.translation,

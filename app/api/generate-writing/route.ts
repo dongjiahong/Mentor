@@ -113,17 +113,26 @@ export async function POST(request: NextRequest) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       
+      // 确保所有数据都是SQLite兼容的基础数据类型，统一转换为JSON字符串
+      const safeCriteria = generatedPrompt.evaluationCriteria 
+        ? JSON.stringify(generatedPrompt.evaluationCriteria)
+        : null;
+        
+      const safeOutline = generatedPrompt.sampleOutline
+        ? JSON.stringify(generatedPrompt.sampleOutline)
+        : null;
+
       const result = insertStmt.run(
-        generatedPrompt.title,
-        generatedPrompt.promptText,
-        generatedPrompt.writingType,
-        generatedPrompt.difficultyLevel,
-        generatedPrompt.topic,
-        generatedPrompt.wordCountRequirement || null,
-        generatedPrompt.timeLimit || null,
-        generatedPrompt.evaluationCriteria || null,
-        generatedPrompt.sampleOutline || null,
-        true // AI生成的内容
+        String(generatedPrompt.title || ''),
+        String(generatedPrompt.promptText || ''),
+        String(generatedPrompt.writingType || ''),
+        String(generatedPrompt.difficultyLevel || ''),
+        generatedPrompt.topic ? String(generatedPrompt.topic) : null,
+        generatedPrompt.wordCountRequirement ? String(generatedPrompt.wordCountRequirement) : null,
+        typeof generatedPrompt.timeLimit === 'number' ? generatedPrompt.timeLimit : null,
+        safeCriteria,
+        safeOutline,
+        1  // SQLite布尔值用1表示true
       )
 
       generatedPrompt.id = result.lastInsertRowid as number
@@ -131,9 +140,29 @@ export async function POST(request: NextRequest) {
       console.log('写作提示已保存到数据库，ID:', generatedPrompt.id)
     }
 
+    // 转换数据字段名以匹配前端期望的格式
+    const responseData = {
+      id: generatedPrompt.id,
+      title: generatedPrompt.title,
+      prompt_text: generatedPrompt.promptText,
+      writing_type: generatedPrompt.writingType,
+      difficulty_level: generatedPrompt.difficultyLevel,
+      topic: generatedPrompt.topic,
+      word_count_requirement: generatedPrompt.wordCountRequirement,
+      time_limit: generatedPrompt.timeLimit,
+      evaluation_criteria: typeof generatedPrompt.evaluationCriteria === 'string' 
+        ? generatedPrompt.evaluationCriteria 
+        : JSON.stringify(generatedPrompt.evaluationCriteria),
+      sample_outline: typeof generatedPrompt.sampleOutline === 'string'
+        ? generatedPrompt.sampleOutline
+        : JSON.stringify(generatedPrompt.sampleOutline),
+      is_ai_generated: generatedPrompt.isAiGenerated,
+      level: generatedPrompt.difficultyLevel  // 添加level字段供前端使用
+    }
+
     return NextResponse.json({
       success: true,
-      data: generatedPrompt,
+      data: responseData,
       message: '写作提示生成成功'
     })
 
@@ -224,8 +253,18 @@ async function generateWritingPrompt(
   "topic": "${topic}",
   "wordCountRequirement": "${targetWordCount}",
   "timeLimit": ${targetTimeLimit},
-  "evaluationCriteria": "JSON字符串格式的评价标准",
-  "sampleOutline": "写作大纲建议"
+  "evaluationCriteria": {
+    "Content": "内容相关性和深度要求",
+    "Organization": "结构和逻辑组织要求", 
+    "Language": "语言运用和语法要求",
+    "Word Count": "字数要求"
+  },
+  "sampleOutline": {
+    "Introduction": "引言部分要求和建议",
+    "Body Paragraph 1": "第一段主体内容要求",
+    "Body Paragraph 2": "第二段主体内容要求（如有需要）",
+    "Conclusion": "结论部分要求和建议"
+  }
 }`
 
   // 调用AI生成写作提示
@@ -260,7 +299,7 @@ async function generateWritingPrompt(
  * 获取写作类型描述
  */
 function getWritingTypeDescription(type: string): string {
-  const descriptions = {
+  const descriptions: Record<string, string> = {
     essay: '论述文',
     letter: '书信',
     report: '报告',
@@ -275,7 +314,7 @@ function getWritingTypeDescription(type: string): string {
  * 根据水平和类型获取默认字数要求
  */
 function getDefaultWordCount(level: EnglishLevel, writingType: string): string {
-  const wordCounts = {
+  const wordCounts: Record<EnglishLevel, Record<string, string>> = {
     A1: { essay: '80-120词', letter: '60-100词', report: '100-150词', story: '80-120词', description: '60-100词', argument: '100-150词' },
     A2: { essay: '120-180词', letter: '100-150词', report: '150-200词', story: '120-180词', description: '100-150词', argument: '150-200词' },
     B1: { essay: '180-250词', letter: '150-200词', report: '200-280词', story: '180-250词', description: '150-200词', argument: '200-280词' },
@@ -291,7 +330,7 @@ function getDefaultWordCount(level: EnglishLevel, writingType: string): string {
  * 根据写作类型获取默认时间限制
  */
 function getDefaultTimeLimit(writingType: string): number {
-  const timeLimits = {
+  const timeLimits: Record<string, number> = {
     essay: 45,
     letter: 30,
     report: 50,

@@ -15,6 +15,12 @@ export interface WritingPromptItem {
   sample_outline?: string;
   is_ai_generated?: boolean;
   created_at: string;
+  level?: string; // 添加level字段以向后兼容
+  // 向后兼容的字段
+  prompt?: string;
+  writingType?: 'essay' | 'letter' | 'report' | 'story' | 'description' | 'argument';
+  wordCountRequirement?: string;
+  timeLimit?: number;
 }
 
 export interface CreateWritingPromptRequest {
@@ -190,7 +196,12 @@ export class WritingPromptsService {
           content: '内容完整性',
           organization: '结构组织'
         }),
-        sampleOutline: '1. 介绍理想职业\n2. 说明感兴趣的原因\n3. 描述所需技能\n4. 总结未来计划'
+        sampleOutline: JSON.stringify({
+          "Introduction": "介绍你理想的职业名称和基本概念",
+          "Interest Reasons": "详细说明为什么对这个职业感兴趣，可以从个人兴趣、社会价值等角度说明",
+          "Required Skills": "描述从事这个职业需要具备的主要技能和资质",
+          "Future Plans": "说明你将如何准备和实现这个职业目标"
+        })
       },
       {
         title: '商务邮件：会议安排',
@@ -206,7 +217,14 @@ export class WritingPromptsService {
           professionalism: '专业性',
           completeness: '信息完整性'
         }),
-        sampleOutline: '1. 邮件标题\n2. 问候语\n3. 会议安排详情\n4. 准备事项\n5. 结束语'
+        sampleOutline: JSON.stringify({
+          "Subject Line": "写一个清晰明确的邮件主题",
+          "Greeting": "使用适当的商务问候语",
+          "Meeting Purpose": "说明会议的目的和重要性",
+          "Meeting Details": "提供具体的时间、地点和参与人员信息",
+          "Preparation Items": "列出会议前需要准备的材料和事项",
+          "Closing": "使用专业的结束语和署名"
+        })
       },
       {
         title: '环境保护调查报告',
@@ -222,7 +240,14 @@ export class WritingPromptsService {
           evidence: '证据支撑',
           recommendations: '建议实用性'
         }),
-        sampleOutline: '1. 报告摘要\n2. 现状分析\n3. 问题识别\n4. 影响评估\n5. 改进建议\n6. 结论'
+        sampleOutline: JSON.stringify({
+          "Executive Summary": "简要概述报告的主要发现和建议",
+          "Current Situation": "详细分析当前环境保护的现状和数据",
+          "Problem Identification": "识别和列出主要的环境问题",
+          "Impact Assessment": "评估这些问题对社区和环境的影响",
+          "Recommendations": "提出具体可行的改进建议和措施",
+          "Conclusion": "总结报告要点并强调行动的紧迫性"
+        })
       },
       {
         title: '童年趣事',
@@ -238,7 +263,12 @@ export class WritingPromptsService {
           engagement: '趣味性',
           language: '语言表达'
         }),
-        sampleOutline: '1. 故事背景\n2. 主要情节\n3. 转折点\n4. 结局和感受'
+        sampleOutline: JSON.stringify({
+          "Story Setting": "描述故事发生的时间、地点和背景",
+          "Main Plot": "详细叙述事件的经过和主要情节",
+          "Turning Point": "描述故事中的关键转折或高潮时刻",
+          "Resolution & Reflection": "说明故事的结局以及你的感受和收获"
+        })
       }
     ];
 

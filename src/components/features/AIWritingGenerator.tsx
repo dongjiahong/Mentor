@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, Sparkles, Loader2, Edit3, Clock, Target, AlertCircle } from 'lucide-react';
+import { Bot, Sparkles, Edit3, Clock, Target, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -39,6 +39,7 @@ export function AIWritingGenerator({ onPromptGenerated, className }: AIWritingGe
   const [generatedPrompt, setGeneratedPrompt] = useState<WritingPromptItem | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
 
   // 英语水平选项
   const levelOptions = Object.entries(ENGLISH_LEVEL_DESCRIPTIONS).map(([value, label]) => ({
@@ -86,7 +87,11 @@ export function AIWritingGenerator({ onPromptGenerated, className }: AIWritingGe
 
       if (result.success) {
         setGeneratedPrompt(result.data);
-        onPromptGenerated?.(result.data);
+        
+        // 直接在这里调用回调，但使用setTimeout避免同步更新
+        if (onPromptGenerated) {
+          setTimeout(() => onPromptGenerated(result.data), 0);
+        }
         
         // 清除表单以便生成新内容
         setFormData(prev => ({ ...prev, topic: '' }));
@@ -196,7 +201,6 @@ export function AIWritingGenerator({ onPromptGenerated, className }: AIWritingGe
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   AI 正在生成提示...
                 </>
               ) : (
@@ -249,9 +253,25 @@ export function AIWritingGenerator({ onPromptGenerated, className }: AIWritingGe
               <div>
                 <h4 className="font-medium text-sm text-muted-foreground mb-2">评价标准</h4>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <pre className="whitespace-pre-wrap text-sm text-blue-800 font-mono">
-                    {JSON.stringify(JSON.parse(generatedPrompt.evaluation_criteria), null, 2)}
-                  </pre>
+                  <div className="text-sm text-blue-800">
+                    {(() => {
+                      try {
+                        const criteria = JSON.parse(generatedPrompt.evaluation_criteria);
+                        return (
+                          <div className="grid gap-3">
+                            {Object.entries(criteria).map(([key, value]: [string, unknown], index: number) => (
+                              <div key={`criteria-${key}-${index}`} className="flex flex-col">
+                                <div className="font-medium text-blue-900 mb-1">{key}:</div>
+                                <div className="text-blue-700 pl-3 border-l-2 border-blue-300">{String(value)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      } catch {
+                        return <div className="whitespace-pre-line">{generatedPrompt.evaluation_criteria}</div>;
+                      }
+                    })()}
+                  </div>
                 </div>
               </div>
             )}
@@ -261,9 +281,37 @@ export function AIWritingGenerator({ onPromptGenerated, className }: AIWritingGe
               <div>
                 <h4 className="font-medium text-sm text-muted-foreground mb-2">写作大纲建议</h4>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="whitespace-pre-line text-sm text-green-800">
-                    {generatedPrompt.sample_outline}
-                  </p>
+                  <div className="text-sm text-green-800">
+                    {(() => {
+                      try {
+                        const outlineObj = JSON.parse(generatedPrompt.sample_outline);
+                        return (
+                          <div className="space-y-4">
+                            {Object.entries(outlineObj).map(([section, content], index) => (
+                              <div key={`outline-section-${section}`} className="border-l-3 border-green-400 pl-4 py-2">
+                                <div className="font-semibold text-green-900 mb-2 flex items-center">
+                                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-3">
+                                    {index + 1}
+                                  </span>
+                                  {section}
+                                </div>
+                                <div className="text-green-700 ml-7 text-sm leading-relaxed">
+                                  {String(content)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      } catch (error) {
+                        // 兜底显示，虽然现在应该都是对象格式了
+                        return (
+                          <div className="text-green-700 whitespace-pre-line">
+                            {generatedPrompt.sample_outline}
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
                 </div>
               </div>
             )}
@@ -280,8 +328,12 @@ export function AIWritingGenerator({ onPromptGenerated, className }: AIWritingGe
                 <Button
                   variant="outline"
                   onClick={() => {
-                    // TODO: 开始写作练习
-                    console.log('开始写作练习');
+                    // 跳转到写作练习页面
+                    const params = new URLSearchParams({
+                      module: 'writing',
+                      contentId: generatedPrompt.id.toString()
+                    });
+                    window.location.href = `/integrated-learning?${params.toString()}`;
                   }}
                 >
                   开始写作
