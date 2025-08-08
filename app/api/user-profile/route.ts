@@ -7,7 +7,19 @@ export async function GET() {
     const stmt = db.prepare('SELECT * FROM user_profile ORDER BY created_at DESC LIMIT 1')
     const profile = stmt.get()
     
-    return NextResponse.json({ success: true, data: profile })
+    if (profile) {
+      // 转换字段名以匹配前端类型定义
+      const formattedProfile = {
+        id: profile.id,
+        englishLevel: profile.english_level,
+        learningGoal: profile.learning_goal,
+        createdAt: profile.created_at,
+        updatedAt: profile.updated_at
+      }
+      return NextResponse.json({ success: true, data: formattedProfile })
+    }
+    
+    return NextResponse.json({ success: true, data: null })
   } catch (error) {
     console.error('获取用户配置失败:', error)
     return NextResponse.json(

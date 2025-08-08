@@ -5,7 +5,7 @@ import {
   DialogueItem,
   EnglishLevel 
 } from '@/types';
-import { LearningContentItem } from '@/services/learning-content/LearningContentService';
+import { LearningContentItem } from '@/services/content';
 
 /**
  * 将数据库中的学习内容转换为语音练习内容格式

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { WordbookClientService } from '@/services/wordbook/WordbookClientService';
+import { wordbookClient } from '@/services/client';
 import { 
   Word, 
   WordAddReason, 
@@ -58,7 +58,7 @@ interface UseWordbookReturn {
  * 提供单词本相关的状态管理和操作方法
  */
 export function useWordbook(): UseWordbookReturn {
-  const [wordbookService] = useState(() => new WordbookClientService());
+  const [wordbookService] = useState(() => wordbookClient);
   const [words, setWords] = useState<Word[]>([]);
   const [reviewWords, setReviewWords] = useState<Word[]>([]);
   const [stats, setStats] = useState<WordbookStats | null>(null);

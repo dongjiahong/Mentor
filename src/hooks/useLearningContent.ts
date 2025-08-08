@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { learningContentService, LearningContentItem, LearningContentQuery } from '@/services/learning-content/LearningContentService';
+import { contentClient } from '@/services/client';
+import { LearningContentItem, LearningContentQuery } from '@/types';
 
 export interface UseLearningContentResult {
   content: LearningContentItem[];
@@ -29,7 +30,7 @@ export function useLearningContent(params?: LearningContentQuery): UseLearningCo
 
       const currentOffset = reset ? 0 : offset;
       
-      const newContent = await learningContentService.getLearningContent({
+      const newContent = await contentClient.getLearningContent({
         ...params,
         limit,
         offset: currentOffset,
@@ -77,9 +78,9 @@ export function useLearningContent(params?: LearningContentQuery): UseLearningCo
         
         // 如果没有内容，则初始化示例数据
         if (isActive) {
-          const contentAfterFetch = await learningContentService.getLearningContent({ limit: 1 });
+          const contentAfterFetch = await contentClient.getLearningContent({ limit: 1 });
           if (contentAfterFetch.length === 0) {
-            await learningContentService.initializeSampleContent();
+            await contentClient.initializeSampleContent();
             // 重新获取数据
             await fetchContent(true);
           }

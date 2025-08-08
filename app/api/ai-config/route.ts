@@ -10,9 +10,16 @@ export async function GET() {
     
     if (config) {
       // 不返回敏感的API密钥，只返回部分信息用于验证
+      // 转换字段名以匹配前端类型定义
       const safeConfig = {
-        ...config,
-        api_key: config.api_key.substring(0, 8) + '***'
+        id: config.id,
+        apiUrl: config.api_url,
+        apiKey: config.api_key ? (config.api_key.substring(0, 8) + '***') : '',
+        modelName: config.model_name,
+        temperature: config.temperature,
+        maxTokens: config.max_tokens,
+        createdAt: config.created_at,
+        updatedAt: config.updated_at
       }
       return NextResponse.json({ success: true, data: safeConfig })
     }
@@ -32,9 +39,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { apiUrl, apiKey, modelName, temperature, maxTokens } = body
 
-    if (!apiUrl || !apiKey || !modelName) {
+    if (!apiUrl || !modelName) {
       return NextResponse.json(
         { success: false, error: '缺少必要参数' },
+        { status: 400 }
+      )
+    }
+
+    // 检查API Key是否为密文（如果是密文，说明用户没有修改API Key）
+    const isApiKeyMasked = apiKey && apiKey.includes('***');
+    
+    if (!isApiKeyMasked && !apiKey) {
+      return NextResponse.json(
+        { success: false, error: 'API Key 不能为空' },
         { status: 400 }
       )
     }
@@ -52,23 +69,33 @@ export async function POST(request: NextRequest) {
     const db = getDatabase()
     
     // 检查是否已有配置
-    const existingConfig = db.prepare('SELECT id FROM ai_config LIMIT 1').get() as { id: number } | undefined
+    const existingConfig = db.prepare('SELECT id, api_key FROM ai_config LIMIT 1').get() as { id: number, api_key: string } | undefined
     
     if (existingConfig) {
       // 更新现有配置
+      // 如果API Key是密文，保持数据库中的原有API Key不变
+      const finalApiKey = isApiKeyMasked ? existingConfig.api_key : apiKey;
+      
       const stmt = db.prepare(`
         UPDATE ai_config 
         SET api_url = ?, api_key = ?, model_name = ?, temperature = ?, max_tokens = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `)
-      stmt.run(apiUrl, apiKey, modelName, temperature || 0.7, maxTokens || 2000, existingConfig.id)
+      stmt.run(apiUrl, finalApiKey, modelName, temperature || 0.7, maxTokens || 2000, existingConfig.id)
       
       return NextResponse.json({
         success: true,
         data: { id: existingConfig.id, apiUrl, modelName, temperature, maxTokens }
       })
     } else {
-      // 创建新配置
+      // 创建新配置时，API Key不能是密文
+      if (isApiKeyMasked) {
+        return NextResponse.json(
+          { success: false, error: '创建新配置时 API Key 不能为空' },
+          { status: 400 }
+        )
+      }
+      
       const stmt = db.prepare(`
         INSERT INTO ai_config (api_url, api_key, model_name, temperature, max_tokens)
         VALUES (?, ?, ?, ?, ?)
@@ -113,19 +140,40 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // 检查API Key是否为密文
+    const isApiKeyMasked = apiKey && apiKey.includes('***');
+
     const db = getDatabase()
-    const stmt = db.prepare(`
-      UPDATE ai_config 
-      SET api_url = COALESCE(?, api_url),
-          api_key = COALESCE(?, api_key),
-          model_name = COALESCE(?, model_name),
-          temperature = COALESCE(?, temperature),
-          max_tokens = COALESCE(?, max_tokens),
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `)
     
-    const result = stmt.run(apiUrl, apiKey, modelName, temperature, maxTokens, id)
+    // 如果API Key是密文，不更新API Key字段
+    let updateSQL, params;
+    if (isApiKeyMasked) {
+      updateSQL = `
+        UPDATE ai_config 
+        SET api_url = COALESCE(?, api_url),
+            model_name = COALESCE(?, model_name),
+            temperature = COALESCE(?, temperature),
+            max_tokens = COALESCE(?, max_tokens),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `;
+      params = [apiUrl, modelName, temperature, maxTokens, id];
+    } else {
+      updateSQL = `
+        UPDATE ai_config 
+        SET api_url = COALESCE(?, api_url),
+            api_key = COALESCE(?, api_key),
+            model_name = COALESCE(?, model_name),
+            temperature = COALESCE(?, temperature),
+            max_tokens = COALESCE(?, max_tokens),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `;
+      params = [apiUrl, apiKey, modelName, temperature, maxTokens, id];
+    }
+    
+    const stmt = db.prepare(updateSQL);
+    const result = stmt.run(...params);
     
     if (result.changes === 0) {
       return NextResponse.json(
@@ -150,9 +198,35 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { apiUrl, apiKey, modelName, temperature, maxTokens } = body
 
-    if (!apiUrl || !apiKey || !modelName) {
+    if (!apiUrl || !modelName) {
       return NextResponse.json(
         { success: false, error: '缺少测试所需参数' },
+        { status: 400 }
+      )
+    }
+
+    // 检查API Key是否为密文
+    const isApiKeyMasked = apiKey && apiKey.includes('***');
+    let finalApiKey = apiKey;
+    
+    // 如果API Key是密文，从数据库获取真实的API Key
+    if (isApiKeyMasked) {
+      const db = getDatabase();
+      const existingConfig = db.prepare('SELECT api_key FROM ai_config LIMIT 1').get() as { api_key: string } | undefined;
+      
+      if (!existingConfig) {
+        return NextResponse.json(
+          { success: false, error: '数据库中没有找到AI配置' },
+          { status: 400 }
+        )
+      }
+      
+      finalApiKey = existingConfig.api_key;
+    }
+
+    if (!finalApiKey) {
+      return NextResponse.json(
+        { success: false, error: 'API Key 不能为空' },
         { status: 400 }
       )
     }
@@ -161,7 +235,7 @@ export async function PATCH(request: NextRequest) {
     const testConfig = {
       id: 0,
       apiUrl,
-      apiKey,
+      apiKey: finalApiKey,
       modelName,
       temperature: temperature || 0.7,
       maxTokens: maxTokens || 2000,

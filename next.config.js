@@ -13,7 +13,29 @@ const nextConfig = {
   // 处理静态文件
   images: {
     remotePatterns: []
-  }
+  },
+  // Webpack 配置，避免客户端打包服务端模块
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // 客户端构建时忽略这些 Node.js 模块
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+        stream: false,
+        buffer: false,
+        os: false,
+        util: false,
+        events: false,
+      };
+      
+      // 忽略数据库和服务端相关的模块
+      config.externals = config.externals || [];
+      config.externals.push('better-sqlite3');
+    }
+    return config;
+  },
 }
 
 module.exports = nextConfig

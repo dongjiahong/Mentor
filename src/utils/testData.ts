@@ -1,5 +1,5 @@
-import { WordbookService } from '@/services/wordbook/WordbookService';
-import { ContentManager } from '@/services/content/ContentManager';
+import { WordbookService } from '@/services/user';
+import { ContentManager } from '@/services/content';
 import { UniversalContent } from '@/types';
 
 /**

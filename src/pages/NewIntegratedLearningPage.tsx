@@ -31,8 +31,8 @@ import {
 } from '@/components/features';
 // 移除内存数据导入，统一使用数据库数据源
 // import { writingContents, listeningContents, readingContents } from '@/services/content/SampleContentData';
-import { learningContentService } from '@/services/learning-content/LearningContentService';
-import { writingPromptsService } from '@/services/writing-prompts/WritingPromptsService';
+import { learningContentService } from '@/services/content';
+import { writingPromptsService } from '@/services/practice';
 import { useLearningContent } from '@/hooks/useLearningContent';
 import { useWritingPrompts } from '@/hooks/useWritingPrompts';
 import { convertToVoicePracticeContent, convertToDialoguePracticeScenario } from '@/utils/contentConverter';
@@ -79,6 +79,19 @@ export function NewIntegratedLearningPage() {
   
   // 从数据库获取写作提示
   const { prompts: writingPrompts, loading: writingLoading, error: writingError, refetch: refetchWritingPrompts } = useWritingPrompts();
+  
+  // 初始化服务
+  useEffect(() => {
+    const initializeServices = async () => {
+      try {
+        await learningContentService.initialize();
+      } catch (error) {
+        console.error('初始化服务失败:', error);
+      }
+    };
+    
+    initializeServices();
+  }, []);
   
   // 处理URL参数，支持从AI生成器跳转过来
   useEffect(() => {
@@ -320,7 +333,11 @@ export function NewIntegratedLearningPage() {
       }
       
       // 从数据库中删除
-      await learningContentService.deleteLearningContent(dbId);
+      const success = await learningContentService.deleteLearningContent(dbId);
+      
+      if (!success) {
+        throw new Error('数据库删除操作失败');
+      }
       
       // 从本地状态中删除
       setState(prev => ({
@@ -328,9 +345,11 @@ export function NewIntegratedLearningPage() {
         dbContents: prev.dbContents.filter(content => content.id !== contentId)
       }));
       
+      console.log('内容删除成功:', contentId);
+      
     } catch (error) {
       console.error('删除内容失败:', error);
-      alert('删除内容失败，请重试');
+      alert('删除内容失败，请重试。错误：' + (error instanceof Error ? error.message : '未知错误'));
     }
   }, [refetchWritingPrompts]);
 

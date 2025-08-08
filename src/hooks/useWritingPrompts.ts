@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { writingPromptsService, WritingPromptItem, WritingPromptsQuery } from '@/services/writing-prompts/WritingPromptsService'
+import { contentClient } from '@/services/client';
+import { WritingPromptItem, WritingPromptsQuery } from '@/types';
 
 interface UseWritingPromptsResult {
   prompts: WritingPromptItem[]
@@ -20,7 +21,7 @@ export function useWritingPrompts(query?: WritingPromptsQuery): UseWritingPrompt
     try {
       setLoading(true)
       setError(null)
-      const data = await writingPromptsService.getWritingPrompts(query)
+      const data = await contentClient.getWritingPrompts(query)
       setPrompts(data)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '获取写作提示失败'

@@ -4,7 +4,7 @@ import {
   SpeechPlaybackState, 
   SpeechPlaybackEvents,
   defaultSpeechService 
-} from '@/services/speech/SpeechService';
+} from '@/services/language/speech/SpeechService';
 import { SpeechOptions, AppError } from '@/types';
 
 export interface UseSpeechOptions {

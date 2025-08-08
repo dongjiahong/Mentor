@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { StorageService } from '../storage/StorageService';
+import { StorageService } from '../core/storage/StorageService';
 
 describe('数据库和存储服务集成测试', () => {
   let storageService: StorageService;

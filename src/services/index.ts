@@ -1,4 +1,11 @@
+/**
+ * 服务层统一导出
+ * 重构后的模块化服务架构
+ */
+
 import { Word, UserProfile, LearningRecord } from '@/types';
+
+// ==================== 服务接口定义 ====================
 
 // 考试题目接口
 export interface ExamQuestion {
@@ -51,23 +58,37 @@ export interface IStorageService {
   close(): void;
 }
 
-// AI服务实现
-export { createAIService, defaultAIService } from './ai/AIService';
+// ==================== 服务基础架构 ====================
 
-// 语音服务实现
-export { WebSpeechService, defaultSpeechService, createSpeechService } from './speech/SpeechService';
-export type { SpeechPlaybackState, SpeechPlaybackEvents } from './speech/SpeechService';
+// 服务基类和注册表
+export * from './base';
 
-// 词典服务实现
-export { FreeDictionaryService, createFreeDictionaryService } from './dictionary/DictionaryService';
-export { DictionaryConfigManager, DictionaryServiceFactory } from './dictionary/DictionaryConfig';
-export type { DictionaryConfig, DictionaryConfigValidation, ConfigField, DictionaryProvider } from './dictionary/DictionaryConfig';
+// ==================== 核心服务 ====================
 
-// 数据库和存储服务实现
-// export { DatabaseConnection } from './database/connection'; // 已迁移到服务端
-export { StorageService } from './storage/StorageService';
-export { WordbookService, MemoryAlgorithm } from './wordbook';
-export { DATABASE_SCHEMA, DATABASE_INDEXES, DATABASE_TRIGGERS } from './database/schema';
+// 注意：核心服务仅用于服务器端，不应被客户端代码导入
+// export * from './core'; // 已移除以防止客户端意外导入服务器端模块
 
-// 学习记录服务实现
-export { LearningRecordsService, LearningRecordsClientService, learningRecordsClientService } from './learning-records';
+// ==================== AI服务 ====================
+
+// AI相关服务
+export * from './ai';
+
+// ==================== 语言服务 ====================
+
+// 词典、语音、发音服务
+export * from './language';
+
+// ==================== 内容服务 ====================
+
+// 学习内容管理
+export * from './content';
+
+// ==================== 练习服务 ====================
+
+// 各种练习模式服务
+export * from './practice';
+
+// ==================== 用户服务 ====================
+
+// 用户相关数据和记录服务
+export * from './user';

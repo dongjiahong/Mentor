@@ -2,16 +2,17 @@ import { renderHook, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useSettings } from '../useSettings';
 
-// Mock StorageService
-vi.mock('@/services/storage/StorageService', () => ({
-  StorageService: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn(),
+// Mock settingsClient
+vi.mock('@/services/client', () => ({
+  settingsClient: {
     getUserProfile: vi.fn(),
     getAIConfig: vi.fn(),
     saveUserProfile: vi.fn(),
     saveAIConfig: vi.fn(),
-    save: vi.fn()
-  }))
+    testAIConfig: vi.fn(),
+    syncFromServer: vi.fn(),
+    clearAll: vi.fn()
+  }
 }));
 
 // Mock fetch for API testing
@@ -30,7 +31,7 @@ describe('useSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     
-    const { StorageService } = require('@/services/storage/StorageService');
+    const { StorageService } = require('@/services/core');
     StorageService.mockImplementation(() => mockStorageService);
     
     // Reset fetch mock

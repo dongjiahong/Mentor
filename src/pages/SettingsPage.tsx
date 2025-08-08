@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Bot, Palette, BookOpen, Loader2, AlertCircle } from 'lucide-react';
 import { useSettings } from '@/hooks';
 import { useTheme } from '@/hooks';
@@ -39,6 +39,11 @@ export function SettingsPage() {
     message: string;
     warnings?: string[];
   } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 英语水平选项
   const levelOptions = Object.entries(ENGLISH_LEVEL_DESCRIPTIONS).map(([value, label]) => ({
@@ -83,24 +88,6 @@ export function SettingsPage() {
     }
   };
 
-  // 处理保存设置
-  const handleSaveSettings = async () => {
-    clearError();
-    const success = await saveSettings();
-    
-    if (success) {
-      setConnectionResult({
-        success: true,
-        message: '设置保存成功！'
-      });
-    }
-  };
-
-  // 处理重置表单
-  const handleResetForm = () => {
-    resetForm();
-    setConnectionResult(null);
-  };
 
   if (isLoading && !userProfile && !aiConfig) {
     return (
@@ -115,12 +102,42 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">设置</h1>
-        <p className="text-muted-foreground">
-          个性化您的学习体验
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">设置</h1>
+          <p className="text-muted-foreground">
+            个性化您的学习体验
+          </p>
+        </div>
+        <div className="flex items-center space-x-3">
+          {mounted && hasUnsavedChanges && (
+            <Button
+              variant="outline"
+              onClick={resetForm}
+              disabled={isLoading}
+            >
+              重置
+            </Button>
+          )}
+          <LoadingButton
+            onClick={saveSettings}
+            loading={isLoading}
+            disabled={!mounted || !hasUnsavedChanges}
+          >
+            {isLoading ? '保存中...' : '保存设置'}
+          </LoadingButton>
+        </div>
       </div>
+
+      {/* 未保存更改提示 */}
+      {mounted && hasUnsavedChanges && (
+        <Alert variant="warning" className="mb-6">
+          <div className="flex items-center">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            您有未保存的更改，请记得保存设置。
+          </div>
+        </Alert>
+      )}
 
       {/* 错误提示 */}
       {error && (
@@ -161,21 +178,29 @@ export function SettingsPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="英语水平" required>
-              <SelectWithOptions
-                options={levelOptions}
-                value={formData.englishLevel}
-                onChange={(value) => updateFormData({ englishLevel: value as EnglishLevel })}
-                placeholder="请选择您的英语水平"
-              />
+              {mounted ? (
+                <SelectWithOptions
+                  options={levelOptions}
+                  value={formData.englishLevel}
+                  onChange={(value) => updateFormData({ englishLevel: value as EnglishLevel })}
+                  placeholder="请选择您的英语水平"
+                />
+              ) : (
+                <div className="h-10 bg-muted animate-pulse rounded"></div>
+              )}
             </FormField>
 
             <FormField label="学习目标" required>
-              <SelectWithOptions
-                options={goalOptions}
-                value={formData.learningGoal}
-                onChange={(value) => updateFormData({ learningGoal: value as LearningGoal })}
-                placeholder="请选择您的学习目标"
-              />
+              {mounted ? (
+                <SelectWithOptions
+                  options={goalOptions}
+                  value={formData.learningGoal}
+                  onChange={(value) => updateFormData({ learningGoal: value as LearningGoal })}
+                  placeholder="请选择您的学习目标"
+                />
+              ) : (
+                <div className="h-10 bg-muted animate-pulse rounded"></div>
+              )}
             </FormField>
           </div>
         </div>
@@ -189,76 +214,106 @@ export function SettingsPage() {
           
           <div className="space-y-4">
             <FormField label="API URL" required>
-              <Input
-                type="url"
-                value={formData.apiUrl}
-                onChange={(e) => updateFormData({ apiUrl: e.target.value })}
-                placeholder="https://api.openai.com/v1"
-              />
+              {mounted ? (
+                <Input
+                  type="url"
+                  value={formData.apiUrl}
+                  onChange={(e) => updateFormData({ apiUrl: e.target.value })}
+                  placeholder="https://api.openai.com/v1"
+                />
+              ) : (
+                <div className="h-10 bg-muted animate-pulse rounded"></div>
+              )}
             </FormField>
 
             <FormField label="API Key" required>
-              <Input
-                type="password"
-                value={formData.apiKey}
-                onChange={(e) => updateFormData({ apiKey: e.target.value })}
-                placeholder="sk-..."
-              />
+              {mounted ? (
+                <Input
+                  type="password"
+                  value={formData.apiKey}
+                  onChange={(e) => updateFormData({ apiKey: e.target.value })}
+                  placeholder="sk-..."
+                />
+              ) : (
+                <div className="h-10 bg-muted animate-pulse rounded"></div>
+              )}
             </FormField>
 
             <FormField label="模型名称" required>
-              <div className="space-y-2">
-                <SelectWithOptions
-                  options={[...modelOptions, { value: 'custom', label: '自定义模型...' }]}
-                  value={modelOptions.find(opt => opt.value === formData.modelName) ? formData.modelName : 'custom'}
-                  onChange={(value) => {
-                    if (value !== 'custom') {
-                      updateFormData({ modelName: value })
-                    }
-                  }}
-                  placeholder="请选择模型"
-                />
-                {(!modelOptions.find(opt => opt.value === formData.modelName) || 
-                  modelOptions.find(opt => opt.value === formData.modelName)?.value === 'custom') && (
-                  <Input
-                    type="text"
-                    value={formData.modelName}
-                    onChange={(e) => updateFormData({ modelName: e.target.value })}
-                    placeholder="输入自定义模型名称，如：Qwen/Qwen3-235B-A22B-Instruct-2507"
-                    className="mt-2"
+              {mounted ? (
+                <div className="space-y-2">
+                  <SelectWithOptions
+                    options={[...modelOptions, { value: 'custom', label: '自定义模型...' }]}
+                    value={modelOptions.find(opt => opt.value === formData.modelName) ? formData.modelName : 'custom'}
+                    onChange={(value) => {
+                      if (value !== 'custom') {
+                        updateFormData({ modelName: value })
+                      }
+                    }}
+                    placeholder="请选择模型"
                   />
-                )}
-              </div>
+                  {(!modelOptions.find(opt => opt.value === formData.modelName) || 
+                    modelOptions.find(opt => opt.value === formData.modelName)?.value === 'custom') && (
+                    <Input
+                      type="text"
+                      value={formData.modelName}
+                      onChange={(e) => updateFormData({ modelName: e.target.value })}
+                      placeholder="输入自定义模型名称，如：Qwen/Qwen3-235B-A22B-Instruct-2507"
+                      className="mt-2"
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="h-10 bg-muted animate-pulse rounded"></div>
+              )}
             </FormField>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField label="Temperature (0-2)" required>
-                <Input
-                  type="number"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={formData.temperature || 0.7}
-                  onChange={(e) => updateFormData({ temperature: parseFloat(e.target.value) || 0.7 })}
-                  placeholder="0.7"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  控制输出的随机性，0为确定性输出，2为高随机性
-                </p>
+                {mounted ? (
+                  <>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={formData.temperature || 0.7}
+                      onChange={(e) => updateFormData({ temperature: parseFloat(e.target.value) || 0.7 })}
+                      placeholder="0.7"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      控制输出的随机性，0为确定性输出，2为高随机性
+                    </p>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="h-10 bg-muted animate-pulse rounded"></div>
+                    <div className="h-3 bg-muted animate-pulse rounded w-3/4"></div>
+                  </div>
+                )}
               </FormField>
 
               <FormField label="最大令牌数" required>
-                <Input
-                  type="number"
-                  min="1"
-                  max="8000"
-                  value={formData.maxTokens || 2000}
-                  onChange={(e) => updateFormData({ maxTokens: parseInt(e.target.value) || 2000 })}
-                  placeholder="2000"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  单次请求的最大输出长度
-                </p>
+                {mounted ? (
+                  <>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="8000"
+                      value={formData.maxTokens || 2000}
+                      onChange={(e) => updateFormData({ maxTokens: parseInt(e.target.value) || 2000 })}
+                      placeholder="2000"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      单次请求的最大输出长度
+                    </p>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="h-10 bg-muted animate-pulse rounded"></div>
+                    <div className="h-3 bg-muted animate-pulse rounded w-3/4"></div>
+                  </div>
+                )}
               </FormField>
             </div>
 
@@ -293,78 +348,48 @@ export function SettingsPage() {
           </div>
           
           <FormField label="主题模式">
-            <div className="flex space-x-4">
-              <label className="flex items-center space-x-2">
-                <input 
-                  type="radio" 
-                  name="theme" 
-                  value="light" 
-                  checked={theme === 'light'}
-                  onChange={() => setTheme('light')}
-                  className="rounded" 
-                />
-                <span className="text-sm">浅色</span>
-              </label>
-              <label className="flex items-center space-x-2">
-                <input 
-                  type="radio" 
-                  name="theme" 
-                  value="dark" 
-                  checked={theme === 'dark'}
-                  onChange={() => setTheme('dark')}
-                  className="rounded" 
-                />
-                <span className="text-sm">深色</span>
-              </label>
-              <label className="flex items-center space-x-2">
-                <input 
-                  type="radio" 
-                  name="theme" 
-                  value="system" 
-                  checked={theme === 'system'}
-                  onChange={() => setTheme('system')}
-                  className="rounded" 
-                />
-                <span className="text-sm">跟随系统</span>
-              </label>
-            </div>
+            {mounted ? (
+              <div className="flex space-x-4">
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="radio" 
+                    name="theme" 
+                    value="light" 
+                    checked={theme === 'light'}
+                    onChange={() => setTheme('light')}
+                    className="rounded" 
+                  />
+                  <span className="text-sm">浅色</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="radio" 
+                    name="theme" 
+                    value="dark" 
+                    checked={theme === 'dark'}
+                    onChange={() => setTheme('dark')}
+                    className="rounded" 
+                  />
+                  <span className="text-sm">深色</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="radio" 
+                    name="theme" 
+                    value="system" 
+                    checked={theme === 'system'}
+                    onChange={() => setTheme('system')}
+                    className="rounded" 
+                  />
+                  <span className="text-sm">跟随系统</span>
+                </label>
+              </div>
+            ) : (
+              <div className="h-6 bg-muted animate-pulse rounded"></div>
+            )}
           </FormField>
         </div>
 
-        {/* 操作按钮 */}
-        <div className="flex justify-between">
-          <div>
-            {hasUnsavedChanges && (
-              <Button
-                variant="outline"
-                onClick={handleResetForm}
-                disabled={isLoading}
-              >
-                重置
-              </Button>
-            )}
-          </div>
-          
-          <div className="flex space-x-3">
-            <LoadingButton
-              onClick={handleSaveSettings}
-              loading={isLoading}
-              disabled={!hasUnsavedChanges}
-            >
-              {isLoading ? '保存中...' : '保存设置'}
-            </LoadingButton>
-          </div>
-        </div>
-
-        {/* 未保存更改提示 */}
-        {hasUnsavedChanges && (
-          <Alert variant="warning">
-            <div className="flex items-center">
-              <AlertCircle className="h-4 w-4 mr-2" />
-              您有未保存的更改，请记得保存设置。
-            </div>
-          </Alert>
-        )}
       </div>
     </div>
   );

@@ -295,9 +295,9 @@ export function ContentBrowser({
 
                 {/* 媒体类型指示器 */}
                 <div className="flex items-center gap-1">
-                  {content.audioUrl && <Volume2 className="h-3 w-3 text-green-600" title="音频" />}
-                  {content.videoUrl && <Video className="h-3 w-3 text-purple-600" title="视频" />}
-                  {content.imageUrl && <Image className="h-3 w-3 text-pink-600" title="图片" />}
+                  {content.audioUrl && <Volume2 className="h-3 w-3 text-green-600" />}
+                  {content.videoUrl && <Video className="h-3 w-3 text-purple-600" />}
+                  {content.imageUrl && <Image className="h-3 w-3 text-pink-600" />}
                 </div>
 
                 {/* 支持的模块 */}

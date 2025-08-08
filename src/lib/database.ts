@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
-import { DATABASE_SCHEMA, DATABASE_INDEXES, DATABASE_TRIGGERS } from '@/services/database/schema'
+import { DATABASE_SCHEMA, DATABASE_INDEXES, DATABASE_TRIGGERS } from '@/services/core/database/schema'
 
 let db: Database.Database | null = null
 

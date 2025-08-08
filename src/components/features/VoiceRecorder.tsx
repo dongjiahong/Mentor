@@ -30,7 +30,7 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { useSpeech } from '@/hooks/useSpeech';
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition';
-import { PronunciationEvaluator } from '@/services/pronunciation/PronunciationEvaluator';
+import { PronunciationEvaluator } from '@/services/language/pronunciation/PronunciationEvaluator';
 import { AppError, PronunciationScore } from '@/types';
 import { cn } from '@/lib/utils';
 

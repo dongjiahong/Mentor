@@ -33,6 +33,19 @@ function handleRecordActivity(db: any, data: any) {
   try {
     const { activityType, contentId, word, accuracyScore, timeSpent } = data;
 
+    // 验证必需的字段
+    if (!activityType || timeSpent == null || timeSpent < 0) {
+      return NextResponse.json({ error: '缺少必要参数：activityType 和 timeSpent 是必需的' }, { status: 400 });
+    }
+
+    // 验证 activityType 的值
+    const validActivityTypes = ['reading', 'listening', 'speaking', 'translation'];
+    if (!validActivityTypes.includes(activityType)) {
+      return NextResponse.json({ 
+        error: `无效的活动类型：${activityType}。有效值为：${validActivityTypes.join(', ')}` 
+      }, { status: 400 });
+    }
+
     const stmt = db.prepare(`
       INSERT INTO learning_records (activity_type, content_id, word, accuracy_score, time_spent)
       VALUES (?, ?, ?, ?, ?)

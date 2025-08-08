@@ -11,7 +11,7 @@ import {
 } from '@/types';
 import { useVoiceRecognition } from './useVoiceRecognition';
 import { useSpeech } from './useSpeech';
-import { PronunciationEvaluator } from '@/services/pronunciation/PronunciationEvaluator';
+import { PronunciationEvaluator } from '@/services/language/pronunciation/PronunciationEvaluator';
 
 export interface VoiceLearningState {
   mode: VoiceLearningMode | null;

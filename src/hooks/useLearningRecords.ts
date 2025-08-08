@@ -7,7 +7,7 @@ import {
   AsyncState,
   AsyncStatus
 } from '@/types';
-import { learningRecordsClientService } from '@/services/learning-records/LearningRecordsClientService';
+import { learningRecordsClient } from '@/services/client';
 
 /**
  * 学习记录Hook
@@ -27,7 +27,6 @@ export function useLearningRecords() {
   useEffect(() => {
     const initializeService = async () => {
       try {
-        await learningRecordsClientService.initialize();
         setIsInitialized(true);
       } catch (error) {
         console.error('初始化学习记录服务失败:', error);
@@ -47,7 +46,7 @@ export function useLearningRecords() {
     if (!isInitialized) return null;
 
     try {
-      const record = await learningRecordsClientService.recordReading(params);
+      const record = await learningRecordsClient.recordReading(params);
       // 记录成功后刷新统计数据
       await refreshStats();
       return record;
@@ -67,7 +66,7 @@ export function useLearningRecords() {
     if (!isInitialized) return null;
 
     try {
-      const record = await learningRecordsClientService.recordListening(params);
+      const record = await learningRecordsClient.recordListening(params);
       await refreshStats();
       return record;
     } catch (error) {
@@ -86,7 +85,7 @@ export function useLearningRecords() {
     if (!isInitialized) return null;
 
     try {
-      const record = await learningRecordsClientService.recordSpeaking(params);
+      const record = await learningRecordsClient.recordSpeaking(params);
       await refreshStats();
       return record;
     } catch (error) {
@@ -105,7 +104,7 @@ export function useLearningRecords() {
     if (!isInitialized) return null;
 
     try {
-      const record = await learningRecordsClientService.recordTranslation(params);
+      const record = await learningRecordsClient.recordTranslation(params);
       await refreshStats();
       return record;
     } catch (error) {
@@ -123,7 +122,7 @@ export function useLearningRecords() {
     if (!isInitialized) return null;
 
     try {
-      const record = await learningRecordsClientService.recordWordLookup(params);
+      const record = await learningRecordsClient.recordWordLookup(params);
       await refreshStats();
       return record;
     } catch (error) {
@@ -139,7 +138,7 @@ export function useLearningRecords() {
     setStats({ status: 'loading' });
     
     try {
-      const statsData = await learningRecordsClientService.getLearningStats();
+      const statsData = await learningRecordsClient.getLearningStats();
       setStats({ 
         status: 'success', 
         data: statsData 
@@ -159,7 +158,7 @@ export function useLearningRecords() {
     setRecentRecords({ status: 'loading' });
     
     try {
-      const records = await learningRecordsClientService.getRecentRecords(limit);
+      const records = await learningRecordsClient.getRecentRecords(limit);
       setRecentRecords({ 
         status: 'success', 
         data: records 
@@ -222,7 +221,6 @@ export function useLearningStats() {
   useEffect(() => {
     const initializeService = async () => {
       try {
-        await learningRecordsClientService.initialize();
         setIsInitialized(true);
       } catch (error) {
         console.error('初始化学习统计服务失败:', error);
@@ -239,7 +237,7 @@ export function useLearningStats() {
     setTodayStats({ status: 'loading' });
     
     try {
-      const stats = await learningRecordsClientService.getTodayStats();
+      const stats = await learningRecordsClient.getTodayStats();
       setTodayStats({ 
         status: 'success', 
         data: stats 
@@ -259,7 +257,7 @@ export function useLearningStats() {
     setWeeklyStats({ status: 'loading' });
     
     try {
-      const stats = await learningRecordsClientService.getWeeklyStats();
+      const stats = await learningRecordsClient.getWeeklyStats();
       setWeeklyStats({ 
         status: 'success', 
         data: stats 
@@ -279,7 +277,7 @@ export function useLearningStats() {
     setMonthlyStats({ status: 'loading' });
     
     try {
-      const stats = await learningRecordsClientService.getMonthlyStats();
+      const stats = await learningRecordsClient.getMonthlyStats();
       setMonthlyStats({ 
         status: 'success', 
         data: stats 
@@ -366,7 +364,6 @@ export function useLearningAbilities() {
   useEffect(() => {
     const initializeService = async () => {
       try {
-        await learningRecordsClientService.initialize();
         setIsInitialized(true);
       } catch (error) {
         console.error('初始化能力评估服务失败:', error);
@@ -383,7 +380,7 @@ export function useLearningAbilities() {
     setAbilities({ status: 'loading' });
     
     try {
-      const abilitiesData = await learningRecordsClientService.evaluateUserAbilities();
+      const abilitiesData = await learningRecordsClient.evaluateUserAbilities();
       setAbilities({ 
         status: 'success', 
         data: abilitiesData 
@@ -403,7 +400,7 @@ export function useLearningAbilities() {
     setLevelUpgrade({ status: 'loading' });
     
     try {
-      const upgradeData = await learningRecordsClientService.checkLevelUpgrade();
+      const upgradeData = await learningRecordsClient.checkLevelUpgrade();
       setLevelUpgrade({ 
         status: 'success', 
         data: upgradeData 
@@ -443,8 +440,8 @@ export function useLearningAbilities() {
 export function useLearningReport() {
   const [report, setReport] = useState<AsyncState<{
     summary: LearningStats;
-    abilities: Awaited<ReturnType<typeof learningRecordsClientService.evaluateUserAbilities>>;
-    trends: Awaited<ReturnType<typeof learningRecordsClientService.getProgressTrend>>;
+    abilities: Awaited<ReturnType<typeof learningRecordsClient.evaluateUserAbilities>>;
+    trends: Awaited<ReturnType<typeof learningRecordsClient.getProgressTrend>>;
     recommendations: string[];
     achievements: Array<{
       type: string;
@@ -462,7 +459,6 @@ export function useLearningReport() {
   useEffect(() => {
     const initializeService = async () => {
       try {
-        await learningRecordsClientService.initialize();
         setIsInitialized(true);
       } catch (error) {
         console.error('初始化学习报告服务失败:', error);
@@ -482,7 +478,7 @@ export function useLearningReport() {
     setReport({ status: 'loading' });
     
     try {
-      const reportData = await learningRecordsClientService.generateLearningReport(params);
+      const reportData = await learningRecordsClient.generateLearningReport(params);
       setReport({ 
         status: 'success', 
         data: reportData 
