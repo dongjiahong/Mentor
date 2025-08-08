@@ -19,8 +19,11 @@ import {
   UniversalContent,
   ListeningPracticeContent,
   ReadingPracticeContent,
-  WritingPracticeContent
+  WritingPracticeContent,
+  ActivityType
 } from '@/types';
+import { LearningRecordsClient } from '@/services/client/learning-records/LearningRecordsClient';
+import { useUnifiedSession } from '@/hooks/useUnifiedSession';
 import { 
   ModuleLearningSelector,
   ContentBrowser,
@@ -44,7 +47,7 @@ type ViewState =
   | 'speaking_practice'       // 口语练习  
   | 'reading_practice'        // 阅读练习
   | 'writing_practice'        // 写作练习
-  | 'content_detail';         // 内容详情
+  | 'content_detail'          // 内容详情
 
 interface LearningPageState {
   currentView: ViewState;
@@ -60,6 +63,7 @@ interface LearningPageState {
 }
 
 export function NewIntegratedLearningPage() {
+  const { createCompletionHandler, validateStats, normalizeStats } = useUnifiedSession();
   const [state, setState] = useState<LearningPageState>({
     currentView: 'home',
     selectedModule: null,
@@ -378,25 +382,55 @@ export function NewIntegratedLearningPage() {
   }, [state.selectedModule, handleBackToHome]);
 
   // 完成练习处理
-  const handlePracticeComplete = useCallback(() => {
-    // 更新用户进度
-    if (state.selectedModule) {
-      setState(prev => ({
-        ...prev,
-        userProgress: {
-          ...prev.userProgress,
-          [state.selectedModule!]: {
-            ...prev.userProgress[state.selectedModule!],
-            completedSessions: prev.userProgress[state.selectedModule!].completedSessions + 1,
-            totalTime: prev.userProgress[state.selectedModule!].totalTime + 900 // 假设练习了15分钟
-          }
-        }
-      }));
+  const handlePracticeComplete = useCallback(async (stats?: any) => {
+    if (!state.selectedModule || !state.selectedContent) {
+      handleBackToModule();
+      return;
     }
 
-    // 返回内容选择或模块首页
-    handleBackToModule();
-  }, [state.selectedModule, handleBackToModule]);
+    try {
+      // 使用统一会话管理记录学习活动
+      if (stats && validateStats(state.selectedModule, stats)) {
+        const normalizedStats = normalizeStats(state.selectedModule, stats);
+        const completionHandler = createCompletionHandler(
+          state.selectedModule,
+          state.selectedContent,
+          () => {
+            // 记录成功后更新用户进度
+            const timeSpent = normalizedStats?.timeSpent ? Math.round(normalizedStats.timeSpent / 1000) : 900;
+            
+            setState(prev => ({
+              ...prev,
+              userProgress: {
+                ...prev.userProgress,
+                [state.selectedModule!]: {
+                  ...prev.userProgress[state.selectedModule!],
+                  completedSessions: prev.userProgress[state.selectedModule!].completedSessions + 1,
+                  totalTime: prev.userProgress[state.selectedModule!].totalTime + timeSpent,
+                  averageScore: normalizedStats?.accuracyScore || prev.userProgress[state.selectedModule!].averageScore,
+                  streak: prev.userProgress[state.selectedModule!].streak + 1
+                }
+              }
+            }));
+            
+            handleBackToModule();
+          },
+          (error) => {
+            console.error('记录学习数据失败:', error);
+            handleBackToModule();
+          }
+        );
+        
+        await completionHandler(normalizedStats);
+      } else {
+        // 没有有效统计数据，直接返回
+        handleBackToModule();
+      }
+    } catch (error) {
+      console.error('处理练习完成失败:', error);
+      handleBackToModule();
+    }
+  }, [state.selectedModule, state.selectedContent, handleBackToModule, createCompletionHandler, validateStats, normalizeStats]);
 
   // 获取面包屑导航
   const getBreadcrumbs = () => {
@@ -464,14 +498,6 @@ export function NewIntegratedLearningPage() {
             <Bot className="h-4 w-4 mr-2 text-purple-600" />
             <Sparkles className="h-3 w-3 mr-1 text-yellow-500" />
             AI 生成器
-          </Button>
-          <Button variant="outline" size="sm">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            学习报告
-          </Button>
-          <Button variant="outline" size="sm">
-            <User className="h-4 w-4 mr-2" />
-            个人设置
           </Button>
         </div>
       </div>
@@ -836,6 +862,7 @@ export function NewIntegratedLearningPage() {
           );
         }
 
+        
       default:
         return (
           <div className="text-center py-12">

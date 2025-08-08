@@ -19,7 +19,7 @@ import { ReadingStats } from './reading/ReadingStats';
 interface ReadingPracticePanelProps {
   content: ReadingPracticeContent | UniversalContent;
   onBack: () => void;
-  onComplete: () => void;
+  onComplete: (stats?: any) => void;
   className?: string;
 }
 
@@ -91,7 +91,7 @@ export function ReadingPracticePanel({
         formatTime={readingSession.formatTime}
         getReadingSpeedLevel={readingSession.getReadingSpeedLevel}
         onRestart={readingSession.restartReading}
-        onComplete={onComplete}
+        onComplete={() => onComplete(readingSession.getSessionStats())}
       />
       <VocabularyHighlight
         wordPopover={wordPopover}

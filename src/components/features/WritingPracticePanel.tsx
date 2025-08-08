@@ -13,7 +13,7 @@ import { formatTime } from '@/lib/writingUtils';
 interface WritingPracticePanelProps {
   content: WritingPracticeContent;
   onBack: () => void;
-  onComplete: () => void;
+  onComplete: (stats?: any) => void;
   className?: string;
 }
 
@@ -29,7 +29,8 @@ export function WritingPracticePanel({
     updateContent,
     submitWriting,
     restartWriting,
-    saveDraft
+    saveDraft,
+    getSessionStats
   } = useWritingSession(content);
 
   // 处理模板使用
@@ -96,7 +97,7 @@ export function WritingPracticePanel({
           score={writingState.score}
           content={content}
           onRestart={restartWriting}
-          onComplete={onComplete}
+          onComplete={() => onComplete(getSessionStats())}
         />
       )}
     </div>

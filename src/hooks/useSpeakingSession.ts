@@ -176,6 +176,34 @@ export function useSpeakingSession(content: UniversalContent) {
     return Math.round(scores.reduce((sum, score) => sum + score.overallScore, 0) / scores.length);
   }, [practiceState.scores]);
 
+  // 获取会话统计数据
+  const getSessionStats = useCallback(() => {
+    const totalItems = getTotalItems();
+    const completedItems = practiceState.scores.size;
+    const scores = Array.from(practiceState.scores.values());
+    const attempts = Array.from(practiceState.attempts.values()).flat();
+    
+    const overallScore = calculateOverallScore();
+    const totalTimeSpent = Date.now() - sessionStartTime;
+    const totalAttempts = attempts.length;
+    
+    return {
+      totalItems,
+      completedItems,
+      accuracyScore: overallScore,
+      timeSpent: totalTimeSpent,
+      totalAttempts,
+      averageAttemptsPerItem: totalItems > 0 ? totalAttempts / totalItems : 0,
+      pronunciationScores: scores.map(s => ({
+        accuracy: s.accuracy,
+        fluency: s.fluency,
+        pronunciation: s.pronunciation,
+        overallScore: s.overallScore
+      })),
+      mode: practiceState.mode
+    };
+  }, [practiceState, getTotalItems, calculateOverallScore, sessionStartTime]);
+
   return {
     // State
     practiceState,
@@ -194,6 +222,7 @@ export function useSpeakingSession(content: UniversalContent) {
     nextItem,
     previousItem,
     retryItem,
-    setShowFeedback
+    setShowFeedback,
+    getSessionStats
   };
 }

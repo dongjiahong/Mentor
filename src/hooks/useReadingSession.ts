@@ -219,6 +219,26 @@ export function useReadingSession(content: ReadingPracticeContent): UseReadingSe
     setSelectedWord('');
   }, [setSelectedWord]);
 
+  // 获取会话统计数据
+  const getSessionStats = useCallback(() => {
+    const totalQuestions = content.questions?.length || 0;
+    const answeredQuestions = readingState.userAnswers.size;
+    const correctAnswers = Array.from(readingState.userAnswers.values()).filter(a => a.isCorrect).length;
+    const totalTimeSpent = Date.now() - readingState.readingStartTime;
+    
+    return {
+      totalQuestions,
+      answeredQuestions,
+      correctAnswers,
+      accuracyScore: readingState.comprehensionScore,
+      readingTime: readingState.readingTime,
+      readingSpeed: readingState.readingSpeed,
+      timeSpent: totalTimeSpent,
+      highlightedWordsCount: readingState.highlightedWords.size,
+      showedTranslation: readingState.showTranslation
+    };
+  }, [content.questions, readingState]);
+
   return {
     readingState,
     selectedWord,
@@ -231,6 +251,7 @@ export function useReadingSession(content: ReadingPracticeContent): UseReadingSe
     nextQuestion,
     goToQuestion,
     getReadingSpeedLevel,
+    getSessionStats,
     formatTime,
     handleWordClick,
     playText,

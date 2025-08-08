@@ -14,7 +14,7 @@ import { SentenceByListening } from './listening/SentenceByListening';
 interface ListeningPracticePanelProps {
   content: ListeningPracticeContent | UniversalContent;
   onBack: () => void;
-  onComplete: () => void;
+  onComplete: (stats?: any) => void;
   className?: string;
 }
 
@@ -28,8 +28,17 @@ export function ListeningPracticePanel({
     listeningContent,
     audioState,
     sessionState,
+    getSessionStats,
     handlers
   } = useListeningSession(content);
+
+  // 完成练习处理
+  const handleComplete = async () => {
+    const stats = getSessionStats();
+    
+    // 调用父组件的 onComplete，传递统计数据
+    onComplete(stats);
+  };
 
   return (
     <div className={cn("max-w-4xl mx-auto p-4 space-y-6", className)}>
@@ -80,7 +89,7 @@ export function ListeningPracticePanel({
         <Button variant="outline" onClick={handlers.handleRetry}>
           重新练习
         </Button>
-        <Button onClick={onComplete}>
+        <Button onClick={handleComplete}>
           完成练习
         </Button>
       </div>

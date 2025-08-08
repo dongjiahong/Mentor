@@ -263,10 +263,32 @@ export function useListeningSession(content: ListeningPracticeContent | Universa
     };
   }, [speechService]);
 
+  // 计算会话统计数据
+  const getSessionStats = useCallback(() => {
+    const totalSentences = sessionState.sentences.length;
+    const answeredSentences = sessionState.sentences.filter(s => s.userInput && s.userInput.trim().length > 0).length;
+    const correctSentences = sessionState.sentences.filter(s => s.similarity && s.similarity >= 0.7).length;
+    const totalTimeSpent = Date.now() - sessionState.sessionStartTime;
+    
+    const accuracyScore = totalSentences > 0 ? (correctSentences / totalSentences) * 100 : 0;
+    const completionRate = totalSentences > 0 ? (answeredSentences / totalSentences) * 100 : 0;
+
+    return {
+      totalSentences,
+      answeredSentences,
+      correctSentences,
+      accuracyScore: Math.round(accuracyScore),
+      completionRate: Math.round(completionRate),
+      timeSpent: totalTimeSpent,
+      averageSimilarity: sessionState.sentences.reduce((sum, s) => sum + (s.similarity || 0), 0) / totalSentences
+    };
+  }, [sessionState.sentences, sessionState.sessionStartTime]);
+
   return {
     listeningContent,
     audioState,
     sessionState,
+    getSessionStats,
     handlers: {
       handleRetry,
       playSentence,

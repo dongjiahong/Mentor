@@ -108,11 +108,30 @@ export function useWritingSession(practiceContent: WritingPracticeContent): UseW
     console.log('保存草稿');
   }, []);
 
+  // 获取会话统计数据
+  const getSessionStats = useCallback(() => {
+    return {
+      wordCount: writingState.wordCount,
+      timeSpent: writingState.timeSpent * 1000, // 转换为毫秒以与其他模块保持一致
+      accuracyScore: writingState.score?.totalScore || 0,
+      status: writingState.status,
+      scores: writingState.score ? {
+        grammar: writingState.score.grammar,
+        vocabulary: writingState.score.vocabulary,
+        coherence: writingState.score.coherence,
+        taskResponse: writingState.score.taskResponse,
+        totalScore: writingState.score.totalScore
+      } : null,
+      practiceType: practiceContent.practiceType
+    };
+  }, [writingState, practiceContent.practiceType]);
+
   return {
     writingState,
     updateContent,
     submitWriting,
     restartWriting,
-    saveDraft
+    saveDraft,
+    getSessionStats
   };
 }

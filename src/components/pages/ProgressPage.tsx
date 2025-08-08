@@ -4,15 +4,11 @@ import {
   Target,
   Clock,
   Award,
-  BookOpen,
   Mic,
   Volume2,
-  Star,
-  Trophy,
-  Medal,
-  Zap,
   ArrowUp,
-  X
+  X,
+  BookOpen
 } from 'lucide-react';
 import {
   LineChart,
@@ -39,16 +35,6 @@ import {
 import { useLearningStats, useLearningAbilities, useLearningReport } from '@/hooks/useLearningRecords';
 import { EnglishLevel } from '@/types';
 
-// 成就类型定义
-interface Achievement {
-  type: string;
-  title: string;
-  description: string;
-  achievedAt: Date;
-  isNew?: boolean;
-  icon: React.ReactNode;
-  color: string;
-}
 
 // 水平升级提醒组件
 function LevelUpgradeNotification({
@@ -176,38 +162,11 @@ function ActivityPieChart({ activitiesByType }: { activitiesByType: Record<strin
   );
 }
 
-// 成就卡片组件
-function AchievementCard({ achievement }: { achievement: Achievement }) {
-  return (
-    <div className={`bg-card border rounded-lg p-4 ${achievement.isNew ? 'ring-2 ring-yellow-400 shadow-lg' : ''}`}>
-      <div className="flex items-center space-x-3">
-        <div className={`p-2 rounded-lg ${achievement.color}`}>
-          {achievement.icon}
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center space-x-2">
-            <h4 className="font-semibold text-card-foreground">{achievement.title}</h4>
-            {achievement.isNew && (
-              <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-xs rounded-full">
-                新获得
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">{achievement.description}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            获得时间: {achievement.achievedAt.toLocaleDateString()}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function ProgressPage() {
   const { todayStats, weeklyStats, monthlyStats, isInitialized } = useLearningStats();
   const { abilities, levelUpgrade } = useLearningAbilities();
   const [showLevelUpgrade, setShowLevelUpgrade] = useState(false);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
 
   // 检查水平升级提醒
   useEffect(() => {
@@ -216,67 +175,6 @@ export function ProgressPage() {
     }
   }, [levelUpgrade]);
 
-  // 生成成就数据
-  useEffect(() => {
-    if (monthlyStats.status === 'success' && monthlyStats.data) {
-      const stats = monthlyStats.data;
-      const generatedAchievements: Achievement[] = [];
-
-      // 学习时间成就
-      if (stats.totalStudyTime >= 3600) { // 1小时
-        generatedAchievements.push({
-          type: 'study_time',
-          title: '学习达人',
-          description: '累计学习时间超过1小时',
-          achievedAt: new Date(),
-          icon: <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
-          color: 'bg-blue-100 dark:bg-blue-900/20',
-          isNew: stats.totalStudyTime < 7200 // 如果少于2小时，认为是新成就
-        });
-      }
-
-      // 词汇量成就
-      if (stats.masteredWords >= 50) {
-        generatedAchievements.push({
-          type: 'vocabulary',
-          title: '词汇小能手',
-          description: `掌握单词数量达到${stats.masteredWords}个`,
-          achievedAt: new Date(),
-          icon: <BookOpen className="h-5 w-5 text-green-600 dark:text-green-400" />,
-          color: 'bg-green-100 dark:bg-green-900/20',
-          isNew: stats.masteredWords < 100
-        });
-      }
-
-      // 连续学习成就
-      if (stats.streakDays >= 3) {
-        generatedAchievements.push({
-          type: 'streak',
-          title: '坚持不懈',
-          description: `连续学习${stats.streakDays}天`,
-          achievedAt: new Date(),
-          icon: <Zap className="h-5 w-5 text-orange-600 dark:text-orange-400" />,
-          color: 'bg-orange-100 dark:bg-orange-900/20',
-          isNew: stats.streakDays < 7
-        });
-      }
-
-      // 准确率成就
-      if (stats.averageAccuracy >= 80) {
-        generatedAchievements.push({
-          type: 'accuracy',
-          title: '精准学习者',
-          description: `平均准确率达到${stats.averageAccuracy.toFixed(1)}%`,
-          achievedAt: new Date(),
-          icon: <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />,
-          color: 'bg-purple-100 dark:bg-purple-900/20',
-          isNew: stats.averageAccuracy < 90
-        });
-      }
-
-      setAchievements(generatedAchievements);
-    }
-  }, [monthlyStats]);
 
   // 格式化时间显示
   const formatTime = (seconds: number) => {
@@ -491,22 +389,6 @@ export function ProgressPage() {
         </div>
       )}
 
-      {/* 成就系统 */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-card-foreground mb-4">学习成就</h3>
-        {achievements.length > 0 ? (
-          <div className="grid md:grid-cols-2 gap-4">
-            {achievements.map((achievement, index) => (
-              <AchievementCard key={index} achievement={achievement} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <Award className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <p className="text-muted-foreground">开始学习来解锁您的第一个成就！</p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

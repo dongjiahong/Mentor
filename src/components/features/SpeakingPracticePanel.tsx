@@ -14,7 +14,7 @@ import { SpeakingResults } from './speaking/SpeakingResults';
 interface SpeakingPracticePanelProps {
   content: UniversalContent;
   onBack: () => void;
-  onComplete: () => void;
+  onComplete: (stats?: any) => void;
   className?: string;
 }
 
@@ -83,7 +83,7 @@ export function SpeakingPracticePanel({
             speechRecording.clearTranscript();
           }}
           onNext={speakingSession.practiceState.currentIndex < speakingSession.totalItems - 1 ? speakingSession.nextItem : undefined}
-          onComplete={onComplete}
+          onComplete={() => onComplete(speakingSession.getSessionStats())}
         />
       );
     } else {
@@ -112,7 +112,7 @@ export function SpeakingPracticePanel({
             speechRecording.clearTranscript();
           }}
           onNext={speakingSession.practiceState.currentIndex < speakingSession.totalItems - 1 ? speakingSession.nextItem : undefined}
-          onComplete={onComplete}
+          onComplete={() => onComplete(speakingSession.getSessionStats())}
         />
       );
     }
