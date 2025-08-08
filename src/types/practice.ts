@@ -144,6 +144,19 @@ export interface CriterionScore {
   feedback: string;
 }
 
+// 听力句子接口
+export interface ListeningSentence {
+  id: string;
+  text: string;
+  translation?: string;  // 中文翻译
+  startTime?: number;
+  endTime?: number;
+  isRevealed: boolean;
+  userInput?: string;
+  similarity?: number;
+  hasBeenPlayed: boolean;
+}
+
 // 听力练习内容接口
 export interface ListeningPracticeContent {
   id: string;
@@ -154,6 +167,7 @@ export interface ListeningPracticeContent {
   practiceType: ListeningPracticeType;
   audioUrl: string;
   transcript?: string;
+  sentences?: ListeningSentence[];
   duration: number;
   questions?: ListeningQuestion[];
   estimatedDuration: number;

@@ -168,9 +168,9 @@ export function NewIntegratedLearningPage() {
               level: converted.level,
               category: converted.category,
               tags: [converted.category],
-              originalText: converted.sentences.map(s => s.text).join(' '),
-              translation: converted.sentences.map(s => s.translation).join(' '),
-              wordCount: converted.sentences.reduce((sum, s) => sum + s.text.split(' ').length, 0),
+              originalText: item.original_text,  // 直接使用数据库原文，保留原有格式
+              translation: item.translation,    // 直接使用数据库翻译，保留原有格式
+              wordCount: item.word_count || converted.sentences.reduce((sum, s) => sum + s.text.split(' ').length, 0),
               estimatedDuration: converted.estimatedDuration,
               sentences: converted.sentences.map(s => ({
                 id: s.id,
@@ -200,10 +200,10 @@ export function NewIntegratedLearningPage() {
               level: converted.level,
               category: converted.category,
               tags: [converted.category],
-              originalText: converted.conversations.map(c => c.text).join(' '),
-              translation: converted.conversations.map(c => c.translation || '').join(' '),
-              wordCount: converted.conversations.reduce((sum, c) => sum + c.text.split(' ').length, 0),
-              estimatedDuration: 15,
+              originalText: item.original_text,  // 直接使用数据库原文，保留对话格式
+              translation: item.translation,    // 直接使用数据库翻译，保留对话格式
+              wordCount: item.word_count || converted.conversations.reduce((sum, c) => sum + c.text.split(' ').length, 0),
+              estimatedDuration: item.estimated_reading_time || 15,
               conversations: converted.conversations.map(c => ({
                 id: c.id,
                 speaker: c.speaker,

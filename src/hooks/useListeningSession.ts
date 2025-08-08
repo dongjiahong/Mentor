@@ -1,7 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ListeningPracticeContent, UniversalContent, UserAnswer } from '@/types';
+import { ListeningPracticeContent, UniversalContent, UserAnswer, ListeningSentence } from '@/types';
 import { getDefaultSpeechService } from '@/services/language/speech/SpeechService';
-import { convertToListeningContent } from '@/utils/listeningHelpers';
+import { 
+  convertToListeningContent, 
+  createListeningSentences, 
+  setSentenceTimestamps,
+  calculateTextSimilarity
+} from '@/utils/listeningHelpers';
 
 interface AudioState {
   isPlaying: boolean;
@@ -15,18 +20,28 @@ interface AudioState {
 }
 
 interface ListeningSessionState {
-  currentQuestionIndex: number;
-  userAnswers: Map<string, UserAnswer>;
-  showTranscript: boolean;
-  showResults: boolean;
+  sentences: ListeningSentence[];
+  playingSentenceId: string | null;
+  isPlayingFullText: boolean;
+  currentFullTextIndex: number;
   sessionStartTime: number;
-  questionStartTime: number;
 }
 
 export function useListeningSession(content: ListeningPracticeContent | UniversalContent) {
   // 确保content是ListeningPracticeContent类型
   const listeningContent: ListeningPracticeContent = 
     'practiceType' in content ? content : convertToListeningContent(content);
+
+  // 初始化句子数据
+  const initializeSentences = useCallback(() => {
+    if (listeningContent.sentences && listeningContent.sentences.length > 0) {
+      return listeningContent.sentences;
+    } else if (listeningContent.transcript) {
+      const sentences = createListeningSentences(listeningContent.transcript);
+      return setSentenceTimestamps(sentences);
+    }
+    return [];
+  }, [listeningContent.sentences, listeningContent.transcript]);
 
   const speechService = getDefaultSpeechService();
   
@@ -43,194 +58,222 @@ export function useListeningSession(content: ListeningPracticeContent | Universa
   });
 
   // 会话状态
-  const [sessionState, setSessionState] = useState<ListeningSessionState>({
-    currentQuestionIndex: 0,
-    userAnswers: new Map(),
-    showTranscript: false,
-    showResults: false,
-    sessionStartTime: Date.now(),
-    questionStartTime: Date.now()
+  const [sessionState, setSessionState] = useState<ListeningSessionState>(() => {
+    const initialSentences = initializeSentences();
+    return {
+      sentences: initialSentences,
+      playingSentenceId: null,
+      isPlayingFullText: false,
+      currentFullTextIndex: -1,
+      sessionStartTime: Date.now()
+    };
   });
 
-  // TTS音频控制处理函数
-  const handlePlayPause = useCallback(async () => {
-    if (audioState.isPlaying) {
-      speechService.stopSpeech();
-      setAudioState(prev => ({ ...prev, isPlaying: false, progress: 0 }));
-    } else {
-      try {
-        setAudioState(prev => ({ ...prev, isLoading: true, error: null }));
-        
-        // 设置TTS播放事件监听器
+  // 停止所有播放
+  const stopAllPlayback = useCallback(() => {
+    speechService.stopSpeech();
+    setAudioState(prev => ({ ...prev, isPlaying: false, currentTime: 0, progress: 0 }));
+    setSessionState(prev => ({ 
+      ...prev, 
+      playingSentenceId: null,
+      isPlayingFullText: false,
+      currentFullTextIndex: -1
+    }));
+  }, [speechService]);
+
+  // 重试练习
+  const handleRetry = useCallback(() => {
+    const initialSentences = initializeSentences();
+    stopAllPlayback();
+    setSessionState({
+      sentences: initialSentences,
+      playingSentenceId: null,
+      isPlayingFullText: false,
+      currentFullTextIndex: -1,
+      sessionStartTime: Date.now()
+    });
+  }, [initializeSentences, stopAllPlayback]);
+
+  // 播放指定句子
+  const playSentence = useCallback(async (sentenceId: string) => {
+    const sentence = sessionState.sentences.find(s => s.id === sentenceId);
+    if (!sentence) return;
+
+    try {
+      // 停止当前播放
+      if (audioState.isPlaying) {
+        speechService.stopSpeech();
+      }
+
+      setSessionState(prev => ({ ...prev, playingSentenceId: sentenceId }));
+      setAudioState(prev => ({ ...prev, isLoading: true, error: null }));
+
+      // 设置播放事件
+      speechService.setPlaybackEvents({
+        onStart: () => {
+          setAudioState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
+          // 标记句子为已播放，但不自动显示原文
+          setSessionState(prev => ({
+            ...prev,
+            sentences: prev.sentences.map(s => 
+              s.id === sentenceId 
+                ? { ...s, hasBeenPlayed: true }
+                : s
+            )
+          }));
+        },
+        onEnd: () => {
+          setAudioState(prev => ({ ...prev, isPlaying: false }));
+          setSessionState(prev => ({ ...prev, playingSentenceId: null }));
+        },
+        onError: (error) => {
+          setAudioState(prev => ({ ...prev, error: error.message, isLoading: false, isPlaying: false }));
+          setSessionState(prev => ({ ...prev, playingSentenceId: null }));
+        }
+      });
+
+      await speechService.speak(sentence.text, {
+        rate: audioState.playbackRate,
+        volume: audioState.volume,
+        lang: 'en-US'
+      });
+    } catch (error) {
+      setAudioState(prev => ({ ...prev, error: '句子播放失败', isLoading: false, isPlaying: false }));
+      setSessionState(prev => ({ ...prev, playingSentenceId: null }));
+    }
+  }, [sessionState.sentences, audioState.isPlaying, audioState.playbackRate, audioState.volume, speechService]);
+
+  // 播放全文
+  const playFullText = useCallback(async () => {
+    if (sessionState.sentences.length === 0) return;
+    
+    try {
+      // 停止当前播放
+      if (audioState.isPlaying) {
+        speechService.stopSpeech();
+      }
+
+      setSessionState(prev => ({ 
+        ...prev, 
+        isPlayingFullText: true,
+        currentFullTextIndex: 0,
+        playingSentenceId: null 
+      }));
+      setAudioState(prev => ({ ...prev, isLoading: true, error: null }));
+
+      // 播放所有句子
+      const playNextSentence = async (index: number) => {
+        if (index >= sessionState.sentences.length) {
+          // 全文播放完成
+          setSessionState(prev => ({ 
+            ...prev, 
+            isPlayingFullText: false,
+            currentFullTextIndex: -1 
+          }));
+          setAudioState(prev => ({ ...prev, isPlaying: false }));
+          return;
+        }
+
+        const sentence = sessionState.sentences[index];
+        setSessionState(prev => ({ ...prev, currentFullTextIndex: index }));
+
+        // 设置播放事件
         speechService.setPlaybackEvents({
           onStart: () => {
-            const estimatedDuration = speechService.estimateSpeechDuration(
-              listeningContent.transcript || listeningContent.title,
-              audioState.playbackRate
-            ) / 1000;
-            setAudioState(prev => ({ 
-              ...prev, 
-              isPlaying: true, 
-              isLoading: false,
-              duration: estimatedDuration
+            setAudioState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
+            // 标记当前句子为已播放
+            setSessionState(prev => ({
+              ...prev,
+              sentences: prev.sentences.map(s => 
+                s.id === sentence.id 
+                  ? { ...s, hasBeenPlayed: true }
+                  : s
+              )
             }));
           },
           onEnd: () => {
-            setAudioState(prev => ({ ...prev, isPlaying: false, progress: 100, currentTime: audioState.duration }));
-          },
-          onProgress: (progress) => {
-            setAudioState(prev => ({ 
-              ...prev, 
-              progress,
-              currentTime: (progress / 100) * prev.duration
-            }));
+            // 播放下一句，添加500ms停顿
+            setTimeout(() => {
+              playNextSentence(index + 1);
+            }, 500);
           },
           onError: (error) => {
             setAudioState(prev => ({ ...prev, error: error.message, isLoading: false, isPlaying: false }));
+            setSessionState(prev => ({ 
+              ...prev, 
+              isPlayingFullText: false,
+              currentFullTextIndex: -1 
+            }));
           }
         });
-        
-        // 使用学习内容的文本进行TTS播放
-        const textToSpeak = listeningContent.transcript || listeningContent.title;
-        await speechService.speak(textToSpeak, {
+
+        await speechService.speak(sentence.text, {
           rate: audioState.playbackRate,
           volume: audioState.volume,
           lang: 'en-US'
         });
-      } catch (error) {
-        setAudioState(prev => ({ ...prev, error: 'TTS播放失败', isLoading: false, isPlaying: false }));
-      }
+      };
+
+      // 开始播放第一句
+      await playNextSentence(0);
+    } catch (error) {
+      setAudioState(prev => ({ ...prev, error: '全文播放失败', isLoading: false, isPlaying: false }));
+      setSessionState(prev => ({ 
+        ...prev, 
+        isPlayingFullText: false,
+        currentFullTextIndex: -1 
+      }));
     }
-  }, [audioState.isPlaying, audioState.playbackRate, audioState.volume, listeningContent, speechService]);
+  }, [sessionState.sentences, audioState.isPlaying, audioState.playbackRate, audioState.volume, speechService]);
 
-  const handleStop = useCallback(() => {
-    speechService.stopSpeech();
-    setAudioState(prev => ({ ...prev, isPlaying: false, currentTime: 0, progress: 0 }));
-  }, [speechService]);
-
-  const handleSeek = useCallback((time: number) => {
-    // TTS不支持跳转，但我们可以更新UI状态
-    // 如果需要跳转功能，需要重新开始播放
-    if (audioState.isPlaying) {
-      speechService.stopSpeech();
-      setAudioState(prev => ({ ...prev, currentTime: time, progress: (time / prev.duration) * 100 }));
-    } else {
-      setAudioState(prev => ({ ...prev, currentTime: time, progress: (time / prev.duration) * 100 }));
-    }
-  }, [audioState.isPlaying, speechService]);
-
-  const handleVolumeChange = useCallback((volume: number) => {
-    const newVolume = volume / 100;
-    setAudioState(prev => ({ ...prev, volume: newVolume }));
-  }, []);
-
-  const handlePlaybackRateChange = useCallback((rate: number) => {
-    setAudioState(prev => ({ ...prev, playbackRate: rate }));
-    // 如果正在播放，需要重新开始播放以应用新的速度
-    if (audioState.isPlaying) {
-      speechService.stopSpeech();
-      // 延迟一点时间后重新播放
-      setTimeout(() => {
-        handlePlayPause();
-      }, 100);
-    }
-  }, [audioState.isPlaying, speechService, handlePlayPause]);
-
-  // 处理答案提交
-  const handleAnswerSubmit = useCallback((questionId: string, answer: string) => {
-    const timeSpent = Date.now() - sessionState.questionStartTime;
-    const question = listeningContent.questions?.[sessionState.currentQuestionIndex];
-    
-    if (!question) return;
-
-    const isCorrect = answer.trim().toLowerCase() === question.correctAnswer.toLowerCase();
-    
+  // 更新句子用户输入
+  const updateSentenceInput = useCallback((sentenceId: string, userInput: string) => {
     setSessionState(prev => ({
       ...prev,
-      userAnswers: new Map(prev.userAnswers.set(questionId, {
-        questionId,
-        answer,
-        isCorrect,
-        timeSpent
-      }))
-    }));
-
-    // 自动跳转到下一题
-    if (sessionState.currentQuestionIndex < (listeningContent.questions?.length || 0) - 1) {
-      setTimeout(() => {
-        setSessionState(prev => ({
-          ...prev,
-          currentQuestionIndex: prev.currentQuestionIndex + 1,
-          questionStartTime: Date.now()
-        }));
-      }, 1500);
-    } else {
-      // 所有题目完成，显示结果
-      setTimeout(() => {
-        setSessionState(prev => ({ ...prev, showResults: true }));
-      }, 1500);
-    }
-  }, [sessionState.currentQuestionIndex, sessionState.questionStartTime, listeningContent.questions]);
-
-  // 题目导航
-  const handleQuestionChange = useCallback((index: number) => {
-    setSessionState(prev => ({
-      ...prev,
-      currentQuestionIndex: index,
-      questionStartTime: Date.now()
+      sentences: prev.sentences.map(sentence => {
+        if (sentence.id === sentenceId) {
+          const similarity = calculateTextSimilarity(sentence.text, userInput);
+          return {
+            ...sentence,
+            userInput,
+            similarity
+          };
+        }
+        return sentence;
+      })
     }));
   }, []);
 
-  // 切换文稿显示
-  const toggleTranscript = useCallback(() => {
-    setSessionState(prev => ({ ...prev, showTranscript: !prev.showTranscript }));
+  // 显示/隐藏句子
+  const toggleSentenceReveal = useCallback((sentenceId: string) => {
+    setSessionState(prev => ({
+      ...prev,
+      sentences: prev.sentences.map(sentence =>
+        sentence.id === sentenceId
+          ? { ...sentence, isRevealed: !sentence.isRevealed }
+          : sentence
+      )
+    }));
   }, []);
 
-  // 重试练习
-  const handleRetry = useCallback(() => {
-    setSessionState({
-      currentQuestionIndex: 0,
-      userAnswers: new Map(),
-      showTranscript: false,
-      showResults: false,
-      sessionStartTime: Date.now(),
-      questionStartTime: Date.now()
-    });
-  }, []);
-
-  // TTS 初始化
+  // 清理资源
   useEffect(() => {
-    // 设置估计的音频时长
-    if (listeningContent.transcript) {
-      const estimatedDuration = speechService.estimateSpeechDuration(
-        listeningContent.transcript,
-        1.0
-      ) / 1000;
-      setAudioState(prev => ({ ...prev, duration: estimatedDuration }));
-    }
-
-    // 清理资源
     return () => {
       speechService.stopSpeech();
     };
-  }, [listeningContent.transcript, speechService]);
+  }, [speechService]);
 
   return {
     listeningContent,
     audioState,
     sessionState,
-    audioHandlers: {
-      handlePlayPause,
-      handleStop,
-      handleSeek,
-      handleVolumeChange,
-      handlePlaybackRateChange
-    },
-    sessionHandlers: {
-      handleAnswerSubmit,
-      handleQuestionChange,
-      toggleTranscript,
-      handleRetry
+    handlers: {
+      handleRetry,
+      playSentence,
+      playFullText,
+      updateSentenceInput,
+      toggleSentenceReveal,
+      stopAllPlayback
     }
   };
 }

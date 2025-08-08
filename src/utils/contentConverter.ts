@@ -3,9 +3,9 @@ import {
   DialoguePracticeScenario, 
   VoicePracticeSentence, 
   DialogueItem,
-  EnglishLevel 
+  EnglishLevel,
+  LearningContentItem
 } from '@/types';
-import { LearningContentItem } from '@/services/content';
 
 /**
  * 将数据库中的学习内容转换为语音练习内容格式
@@ -54,17 +54,9 @@ export function convertToDialoguePracticeScenario(dbContent: LearningContentItem
  * 将文本转换为句子数组
  */
 function convertTextToSentences(originalText: string, translation: string): VoicePracticeSentence[] {
-  // 按句号、感叹号、问号分割英文文本
-  const englishSentences = originalText
-    .split(/[.!?]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
-
-  // 按句号、感叹号、问号分割中文文本
-  const chineseSentences = translation
-    .split(/[。！？]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+  // 使用和 listeningHelpers.ts 相同的句子分割逻辑
+  const englishSentences = splitTextIntoSentences(originalText);
+  const chineseSentences = splitTextIntoSentences(translation);
 
   // 创建句子数组，尽量一一对应
   const sentences: VoicePracticeSentence[] = [];
@@ -86,6 +78,42 @@ function convertTextToSentences(originalText: string, translation: string): Voic
   }
 
   return sentences;
+}
+
+/**
+ * 分割文本为句子（保留标点符号）
+ */
+function splitTextIntoSentences(text: string): string[] {
+  if (!text) return [];
+  
+  // 先按换行符分割，处理对话格式
+  const lines = text.split(/\n+/).filter(line => line.trim().length > 0);
+  
+  const sentences: string[] = [];
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+    
+    // 如果是对话格式（A: 或 B: 开头），直接作为一句
+    if (/^[A-Z]:\s/.test(trimmedLine)) {
+      sentences.push(trimmedLine);
+      continue;
+    }
+    
+    // 按句号、问号、感叹号分割（同时处理中英文标点），保留标点符号
+    // 使用负向前瞻来避免分割 a.m. 和 p.m.，中文不需要空格
+    const lineSentences = trimmedLine.split(/(?<=[.!?。！？])(?!\s*m\.)\s*/).filter(s => s.trim().length > 0);
+    
+    // 如果没有标点符号分割，整行作为一句
+    if (lineSentences.length === 1 && !trimmedLine.match(/[.!?。！？]$/)) {
+      sentences.push(trimmedLine);
+    } else {
+      sentences.push(...lineSentences.map(s => s.trim()));
+    }
+  }
+  
+  return sentences.filter(sentence => sentence.length > 0);
 }
 
 /**

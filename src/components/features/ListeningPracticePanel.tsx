@@ -1,7 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
   ListeningPracticeContent, 
@@ -9,9 +9,7 @@ import {
   LISTENING_PRACTICE_TYPE_DESCRIPTIONS
 } from '@/types';
 import { useListeningSession } from '@/hooks/useListeningSession';
-import { AudioPlayer } from './listening/AudioPlayer';
-import { ListeningQuestions } from './listening/ListeningQuestions';
-import { ListeningResults } from './listening/ListeningResults';
+import { SentenceByListening } from './listening/SentenceByListening';
 
 interface ListeningPracticePanelProps {
   content: ListeningPracticeContent | UniversalContent;
@@ -30,8 +28,7 @@ export function ListeningPracticePanel({
     listeningContent,
     audioState,
     sessionState,
-    audioHandlers,
-    sessionHandlers
+    handlers
   } = useListeningSession(content);
 
   return (
@@ -52,7 +49,7 @@ export function ListeningPracticePanel({
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="secondary">
-                {LISTENING_PRACTICE_TYPE_DESCRIPTIONS[listeningContent.practiceType]}
+                逐句听力练习
               </Badge>
               <Badge variant="outline">
                 {listeningContent.level}
@@ -62,67 +59,31 @@ export function ListeningPracticePanel({
         </CardHeader>
       </Card>
 
-      {/* 音频播放器 */}
-      <AudioPlayer
-        audioState={audioState}
-        onPlayPause={audioHandlers.handlePlayPause}
-        onStop={audioHandlers.handleStop}
-        onSeek={audioHandlers.handleSeek}
-        onVolumeChange={audioHandlers.handleVolumeChange}
-        onPlaybackRateChange={audioHandlers.handlePlaybackRateChange}
-      />
-
-      {/* 听力文稿 */}
-      {listeningContent.transcript && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                听力文稿
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={sessionHandlers.toggleTranscript}
-              >
-                {sessionState.showTranscript ? '隐藏' : '显示'}文稿
-              </Button>
-            </div>
-          </CardHeader>
-          {sessionState.showTranscript && (
-            <CardContent>
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="leading-relaxed whitespace-pre-wrap">
-                  {listeningContent.transcript}
-                </p>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      )}
-
-      {/* 练习题目 */}
-      {listeningContent.questions && listeningContent.questions.length > 0 && !sessionState.showResults && (
-        <ListeningQuestions
-          questions={listeningContent.questions}
-          currentQuestionIndex={sessionState.currentQuestionIndex}
-          userAnswers={sessionState.userAnswers}
-          onAnswerSubmit={sessionHandlers.handleAnswerSubmit}
-          onQuestionChange={sessionHandlers.handleQuestionChange}
-          onSeek={audioHandlers.handleSeek}
+      {/* 逐句练习 */}
+      {sessionState.sentences.length > 0 && (
+        <SentenceByListening
+          sentences={sessionState.sentences}
+          playingSentenceId={sessionState.playingSentenceId}
+          isPlayingFullText={sessionState.isPlayingFullText}
+          currentFullTextIndex={sessionState.currentFullTextIndex}
+          isLoading={audioState.isLoading}
+          onPlaySentence={handlers.playSentence}
+          onPlayFullText={handlers.playFullText}
+          onUpdateInput={handlers.updateSentenceInput}
+          onToggleReveal={handlers.toggleSentenceReveal}
+          onStopPlayback={handlers.stopAllPlayback}
         />
       )}
 
-      {/* 结果页面或无题目提示 */}
-      {(sessionState.showResults || !listeningContent.questions || listeningContent.questions.length === 0) && (
-        <ListeningResults
-          questions={listeningContent.questions}
-          userAnswers={sessionState.userAnswers}
-          onRetry={sessionHandlers.handleRetry}
-          onComplete={onComplete}
-        />
-      )}
+      {/* 练习完成按钮 */}
+      <div className="flex justify-center gap-4 pt-6">
+        <Button variant="outline" onClick={handlers.handleRetry}>
+          重新练习
+        </Button>
+        <Button onClick={onComplete}>
+          完成练习
+        </Button>
+      </div>
     </div>
   );
 }
