@@ -266,12 +266,25 @@ export function NewIntegratedLearningPage() {
 
   // 处理模块选择
   const handleModuleSelect = useCallback((module: LearningModule) => {
-    setState(prev => ({
-      ...prev,
-      selectedModule: module,
-      currentView: module === 'content' ? 'content_browser' : `${module}_practice` as ViewState,
-      selectedContent: null
-    }));
+    setState(prev => {
+      // 检查当前选择的内容是否支持目标模块
+      let shouldKeepContent = false;
+      if (prev.selectedContent && 'supportedModules' in prev.selectedContent) {
+        const universalContent = prev.selectedContent as UniversalContent;
+        shouldKeepContent = universalContent.supportedModules.includes(module);
+      } else if (prev.selectedContent && module === 'writing') {
+        // 写作内容总是支持写作模块
+        shouldKeepContent = true;
+      }
+
+      return {
+        ...prev,
+        selectedModule: module,
+        currentView: module === 'content' ? 'content_browser' : `${module}_practice` as ViewState,
+        // 如果内容支持目标模块，保留选择；否则清除
+        selectedContent: shouldKeepContent ? prev.selectedContent : null
+      };
+    });
   }, []);
 
   // 处理内容选择
@@ -304,6 +317,37 @@ export function NewIntegratedLearningPage() {
       }));
     }
   }, []);
+
+  // 处理内容点击和模块跳转的组合逻辑
+  const handleContentClick = useCallback((content: UniversalContent, targetModule?: LearningModule) => {
+    // 首先处理内容选择
+    handleContentSelect(content);
+    
+    // 然后跳转到指定模块的练习页面
+    if (targetModule) {
+      setState(prev => ({
+        ...prev,
+        selectedModule: targetModule,
+        currentView: `${targetModule}_practice` as ViewState,
+        selectedContent: 'writingPrompt' in content && content.writingPrompt && targetModule === 'writing' ?
+          {
+            id: content.id,
+            title: content.title,
+            description: content.description,
+            level: content.level,
+            category: content.category,
+            practiceType: 'essay_writing' as WritingPracticeType,
+            prompt: content.writingPrompt.prompt,
+            wordLimit: content.writingPrompt.wordLimit || 200,
+            timeLimit: content.writingPrompt.timeLimit || 30,
+            estimatedDuration: content.estimatedDuration,
+            difficulty: 3,
+            evaluationCriteria: content.writingPrompt.evaluationCriteria,
+            sampleOutline: content.writingPrompt.sampleOutline
+          } : content
+      }));
+    }
+  }, [handleContentSelect]);
 
   // 处理内容删除
   const handleContentDelete = useCallback(async (contentId: string) => {
@@ -523,6 +567,7 @@ export function NewIntegratedLearningPage() {
           <ContentBrowser
             contents={state.dbContents}
             onContentSelect={handleContentSelect}
+            onContentClick={handleContentClick}
             onContentDelete={handleContentDelete}
             onModuleSelect={handleModuleSelect}
             showSearch={true}

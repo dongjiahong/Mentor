@@ -48,6 +48,7 @@ interface ContentBrowserProps {
   onContentSelect: (content: UniversalContent) => void;
   onContentDelete?: (contentId: string) => void | Promise<void>;
   onModuleSelect?: (module: LearningModule) => void;
+  onContentClick?: (content: UniversalContent, defaultModule?: LearningModule) => void;
   className?: string;
   showSearch?: boolean;
   showFilters?: boolean;
@@ -98,6 +99,7 @@ export function ContentBrowser({
   onContentSelect,
   onContentDelete,
   onModuleSelect,
+  onContentClick,
   className,
   showSearch = true,
   showFilters = true,
@@ -214,12 +216,16 @@ export function ContentBrowser({
   // 处理模块图标点击，跳转到对应模块
   const handleModuleIconClick = useCallback((module: LearningModule, content: UniversalContent, e: React.MouseEvent) => {
     e.stopPropagation(); // 阻止事件冒泡，防止触发内容选择
-    if (onModuleSelect) {
-      // 先选择该内容，然后跳转到对应模块
+    
+    if (onContentClick) {
+      // 使用新的处理函数，直接跳转到指定模块的练习页面
+      onContentClick(content, module);
+    } else if (onModuleSelect) {
+      // 兼容旧的处理方式
       onContentSelect(content);
       onModuleSelect(module);
     }
-  }, [onContentSelect, onModuleSelect]);
+  }, [onContentSelect, onModuleSelect, onContentClick]);
 
   // 处理删除按钮点击
   const handleDeleteClick = useCallback((content: UniversalContent, e: React.MouseEvent) => {
@@ -257,7 +263,15 @@ export function ContentBrowser({
       <div 
         key={content.id}
         className="group cursor-pointer hover:bg-accent/50 border rounded-lg p-3 transition-all hover:border-primary/50"
-        onClick={() => onContentSelect(content)}
+        onClick={() => {
+          if (onContentClick) {
+            // 优先使用新的处理函数，默认跳转到阅读模块
+            onContentClick(content, 'reading');
+          } else {
+            // 保持向后兼容性
+            onContentSelect(content);
+          }
+        }}
       >
         <div className="flex items-center gap-3">
           {/* 内容类型图标 */}
