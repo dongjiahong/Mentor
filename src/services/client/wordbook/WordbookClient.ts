@@ -120,30 +120,13 @@ export class WordbookClient {
     wordId: number,
     result: 'unknown' | 'familiar' | 'known'
   ): Promise<Word> {
-    // 将复习结果转换为熟练度等级调整
-    let proficiencyAdjustment = 0;
-    
-    const currentWord = await this.getWord(wordId);
-    if (!currentWord) {
-      throw new Error('单词不存在');
-    }
-    
-    let newProficiency = currentWord.proficiencyLevel;
-    
-    switch (result) {
-      case 'known':
-        newProficiency = Math.min(5, currentWord.proficiencyLevel + 1);
-        break;
-      case 'familiar':
-        // 保持当前等级
-        newProficiency = currentWord.proficiencyLevel;
-        break;
-      case 'unknown':
-        newProficiency = Math.max(0, currentWord.proficiencyLevel - 1);
-        break;
-    }
-    
-    return this.updateWordProficiency(wordId, newProficiency);
+    return this.apiClient.post<Word>('/wordbook', {
+      action: 'process_review',
+      data: {
+        wordId,
+        result
+      }
+    });
   }
 
   /**

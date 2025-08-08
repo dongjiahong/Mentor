@@ -129,12 +129,11 @@ function handleGetStats() {
     const masteredWordsResult = db.prepare('SELECT COUNT(*) as count FROM wordbook WHERE proficiency_level = 5').get() as any;
     const masteredWords = masteredWordsResult.count;
     
-    // 需要复习的单词数（使用本地时区）
-    const currentTime = getCurrentLocalTime();
+    // 需要复习的单词数（使用SQLite的datetime函数考虑时区）
     const needReviewWordsResult = db.prepare(`
       SELECT COUNT(*) as count FROM wordbook 
-      WHERE next_review_at IS NULL OR next_review_at <= ?
-    `).get(currentTime) as any;
+      WHERE next_review_at IS NULL OR datetime(next_review_at) <= datetime('now', '+8 hours')
+    `).get() as any;
     const needReviewWords = needReviewWordsResult.count;
     
     // 按添加原因统计
@@ -328,8 +327,103 @@ function handleRemoveWord(data: RemoveWordData) {
   });
 }
 
-function handleProcessReview(_data: ProcessReviewData) {
-  return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
+function handleProcessReview(data: ProcessReviewData) {
+  const { wordId, result } = data;
+  
+  if (wordId === undefined || !result) {
+    return NextResponse.json(
+      { success: false, error: '缺少必要参数：wordId 和 result' },
+      { status: 400 }
+    );
+  }
+
+  // 验证复习结果的值
+  const validResults = ['unknown', 'familiar', 'known'];
+  if (!validResults.includes(result)) {
+    return NextResponse.json(
+      { success: false, error: `无效的复习结果：${result}。有效值为：${validResults.join(', ')}` },
+      { status: 400 }
+    );
+  }
+
+  const db = getDatabase();
+  
+  // 获取当前单词信息
+  const existingWord = db.prepare('SELECT * FROM wordbook WHERE id = ?').get(wordId) as any;
+  if (!existingWord) {
+    return NextResponse.json(
+      { success: false, error: '单词不存在' },
+      { status: 404 }
+    );
+  }
+
+  // 根据复习结果调整熟练度
+  let newProficiency = existingWord.proficiency_level || 0;
+  
+  switch (result) {
+    case 'known':
+      newProficiency = Math.min(5, newProficiency + 1);
+      break;
+    case 'familiar':
+      // 保持当前等级
+      newProficiency = newProficiency;
+      break;
+    case 'unknown':
+      newProficiency = Math.max(0, newProficiency - 1);
+      break;
+  }
+
+  // 根据熟练度计算下次复习时间间隔（天数）
+  const reviewIntervalDays = {
+    0: 1,      // 1天后
+    1: 3,      // 3天后  
+    2: 7,      // 7天后
+    3: 14,     // 14天后
+    4: 30,     // 30天后
+    5: 90      // 90天后（已掌握）
+  };
+
+  const intervalDays = reviewIntervalDays[newProficiency as keyof typeof reviewIntervalDays];
+  const nextReviewTime = getLocalTimeAfterDays(intervalDays);
+  const currentTime = getCurrentLocalTime();
+
+  // 更新单词熟练度和复习信息
+  const updateStmt = db.prepare(`
+    UPDATE wordbook 
+    SET proficiency_level = ?,
+        review_count = review_count + 1,
+        last_review_at = ?,
+        next_review_at = ?
+    WHERE id = ?
+  `);
+  
+  const updateResult = updateStmt.run(newProficiency, currentTime, nextReviewTime, wordId);
+  
+  if (updateResult.changes === 0) {
+    return NextResponse.json(
+      { success: false, error: '更新失败' },
+      { status: 500 }
+    );
+  }
+  
+  // 获取更新后的单词记录
+  const updatedWord = db.prepare('SELECT * FROM wordbook WHERE id = ?').get(wordId) as any;
+  
+  return NextResponse.json({
+    success: true,
+    data: {
+      id: updatedWord.id,
+      word: updatedWord.word,
+      definition: updatedWord.definition,
+      pronunciation: updatedWord.pronunciation,
+      addReason: updatedWord.add_reason,
+      proficiencyLevel: updatedWord.proficiency_level,
+      reviewCount: updatedWord.review_count,
+      lastReviewAt: updatedWord.last_review_at ? new Date(updatedWord.last_review_at) : undefined,
+      nextReviewAt: updatedWord.next_review_at ? new Date(updatedWord.next_review_at) : undefined,
+      createdAt: new Date(updatedWord.created_at)
+    }
+  });
 }
 
 function handleGetRecommendations() {
@@ -481,9 +575,8 @@ export async function GET(request: NextRequest) {
     
     // 构建WHERE条件
     if (needReview) {
-      const currentTime = getCurrentLocalTime();
-      whereConditions.push('(next_review_at IS NULL OR next_review_at <= ?)')
-      queryParams.push(currentTime)
+      // 使用SQLite的datetime('now','+8 hours')考虑本地时区
+      whereConditions.push('(next_review_at IS NULL OR datetime(next_review_at) <= datetime(\'now\', \'+8 hours\'))')
       orderBy = 'ORDER BY next_review_at ASC'
     }
     

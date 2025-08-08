@@ -9,9 +9,8 @@
  */
 export function getCurrentLocalTime(): string {
   const now = new Date();
-  const utc8Offset = 8 * 60; // UTC+8 的分钟偏移量
-  const localTime = new Date(now.getTime() + (utc8Offset + now.getTimezoneOffset()) * 60000);
-  return localTime.toISOString();
+  // 直接使用 UTC 时间，避免时区转换问题
+  return now.toISOString();
 }
 
 /**
@@ -21,10 +20,8 @@ export function getCurrentLocalTime(): string {
  */
 export function getLocalTimeAfterDays(days: number): string {
   const now = new Date();
-  const utc8Offset = 8 * 60;
-  const localTime = new Date(now.getTime() + (utc8Offset + now.getTimezoneOffset()) * 60000);
-  localTime.setDate(localTime.getDate() + days);
-  return localTime.toISOString();
+  now.setDate(now.getDate() + days);
+  return now.toISOString();
 }
 
 /**
@@ -80,10 +77,8 @@ export function formatLocalTime(
  */
 export function getTodayStartTime(): string {
   const now = new Date();
-  const utc8Offset = 8 * 60;
-  const localTime = new Date(now.getTime() + (utc8Offset + now.getTimezoneOffset()) * 60000);
-  localTime.setHours(0, 0, 0, 0);
-  return localTime.toISOString();
+  now.setHours(0, 0, 0, 0);
+  return now.toISOString();
 }
 
 /**
@@ -92,8 +87,6 @@ export function getTodayStartTime(): string {
  */
 export function getTodayEndTime(): string {
   const now = new Date();
-  const utc8Offset = 8 * 60;
-  const localTime = new Date(now.getTime() + (utc8Offset + now.getTimezoneOffset()) * 60000);
-  localTime.setHours(23, 59, 59, 999);
-  return localTime.toISOString();
+  now.setHours(23, 59, 59, 999);
+  return now.toISOString();
 }
