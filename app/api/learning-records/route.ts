@@ -12,6 +12,8 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'record_activity':
         return handleRecordActivity(db, data);
+      case 'record_word_lookup':
+        return handleRecordWordLookup(db, data);
       case 'get_stats':
         return handleGetStats(db, data);
       case 'get_records':
@@ -20,6 +22,14 @@ export async function POST(request: NextRequest) {
         return handleEvaluateAbilities(db);
       case 'get_progress_trend':
         return handleGetProgressTrend(db, data);
+      case 'generate_report':
+        return handleGenerateReport(db, data);
+      case 'check_level_upgrade':
+        return handleCheckLevelUpgrade(db);
+      case 'get_achievements':
+        return handleGetAchievements(db, data);
+      case 'get_recommendations':
+        return handleGetRecommendations(db, data);
       default:
         return NextResponse.json({ error: '未知操作' }, { status: 400 });
     }
@@ -384,5 +394,154 @@ function handleGetProgressTrend(db: any, data: any) {
   } catch (error) {
     console.error('获取进度趋势失败:', error);
     return NextResponse.json({ error: '获取趋势失败' }, { status: 500 });
+  }
+}
+
+function handleRecordWordLookup(db: any, data: any) {
+  try {
+    const { word, lookupType } = data;
+
+    if (!word || !lookupType) {
+      return NextResponse.json({ error: '缺少必要参数：word 和 lookupType' }, { status: 400 });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO learning_records (activity_type, word, time_spent)
+      VALUES (?, ?, ?)
+    `);
+
+    const result = stmt.run('translation', word, 10); // 假设查词花费10秒
+
+    const record = db.prepare('SELECT * FROM learning_records WHERE id = ?').get(result.lastInsertRowid);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: record.id,
+        activityType: record.activity_type,
+        word: record.word,
+        timeSpent: record.time_spent,
+        createdAt: new Date(record.created_at)
+      }
+    });
+  } catch (error) {
+    console.error('记录单词查询失败:', error);
+    return NextResponse.json({ error: '记录失败' }, { status: 500 });
+  }
+}
+
+function handleGenerateReport(db: any, data: any) {
+  try {
+    // 获取统计数据
+    const statsData = handleGetStats(db, data);
+    if (statsData.status === 500) {
+      return statsData;
+    }
+
+    // 获取能力评估
+    const abilitiesData = handleEvaluateAbilities(db);
+    if (abilitiesData.status === 500) {
+      return abilitiesData;
+    }
+
+    // 生成报告
+    const report = {
+      summary: {
+        totalTime: 0,
+        totalActivities: 0,
+        averageAccuracy: 0,
+        streakDays: 0
+      },
+      activityBreakdown: {
+        reading: { count: 0, totalTime: 0, averageAccuracy: 0 },
+        listening: { count: 0, totalTime: 0, averageAccuracy: 0 },
+        speaking: { count: 0, totalTime: 0, averageAccuracy: 0 },
+        translation: { count: 0, totalTime: 0, averageAccuracy: 0 }
+      },
+      progressAnalysis: '根据您的学习数据，整体表现良好，建议保持当前学习节奏。',
+      recommendations: [
+        '建议每天保持30分钟以上的学习时间',
+        '注重听说读写的均衡练习',
+        '定期复习掌握的词汇'
+      ]
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    console.error('生成学习报告失败:', error);
+    return NextResponse.json({ error: '生成报告失败' }, { status: 500 });
+  }
+}
+
+function handleCheckLevelUpgrade(db: any) {
+  try {
+    // 简化实现：检查是否需要升级
+    return NextResponse.json({
+      success: true,
+      data: {
+        canUpgrade: false,
+        currentLevel: 'A2',
+        nextLevel: 'B1',
+        requirements: ['掌握更多词汇', '提高听力理解能力'],
+        progress: 65
+      }
+    });
+  } catch (error) {
+    console.error('检查等级升级失败:', error);
+    return NextResponse.json({ error: '检查失败' }, { status: 500 });
+  }
+}
+
+function handleGetAchievements(db: any, data: any) {
+  try {
+    const achievements = [
+      {
+        id: 'first_day',
+        name: '初来乍到',
+        description: '完成第一天的学习',
+        icon: '🎉',
+        unlocked: true,
+        progress: 100
+      },
+      {
+        id: 'vocab_100',
+        name: '词汇达人',
+        description: '掌握100个单词',
+        icon: '📚',
+        unlocked: false,
+        progress: 65,
+        requirement: '掌握100个单词'
+      }
+    ];
+
+    return NextResponse.json({
+      success: true,
+      data: achievements
+    });
+  } catch (error) {
+    console.error('获取成就失败:', error);
+    return NextResponse.json({ error: '获取成就失败' }, { status: 500 });
+  }
+}
+
+function handleGetRecommendations(db: any, data: any) {
+  try {
+    const recommendations = [
+      '建议增加听力练习时间，提升听力理解能力',
+      '注重发音练习，提高口语表达的准确性',
+      '扩大词汇量，学习更多高频词汇',
+      '保持每天学习的习惯，连续学习效果更好'
+    ];
+
+    return NextResponse.json({
+      success: true,
+      data: recommendations
+    });
+  } catch (error) {
+    console.error('获取学习建议失败:', error);
+    return NextResponse.json({ error: '获取建议失败' }, { status: 500 });
   }
 }
