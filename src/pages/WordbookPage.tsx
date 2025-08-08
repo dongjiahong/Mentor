@@ -164,10 +164,11 @@ export function WordbookPage() {
   // 重新加载数据（仅在查询参数变化时）
   useEffect(() => {
     // 只有在有搜索或筛选条件时才重新加载
-    if (searchQuery || Object.values(filters).some(v => v !== undefined)) {
+    const hasFilters = searchQuery.trim() || Object.values(filters).some(v => v !== undefined && v !== '');
+    if (hasFilters) {
       loadWords(queryParams);
     }
-  }, [queryParams]);
+  }, [searchQuery, filters]);
 
   // 重置页码当筛选条件改变时
   useEffect(() => {

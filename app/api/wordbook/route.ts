@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/database'
+import { getCurrentLocalTime, getLocalTimeAfterDays, getTodayStartTime, getTodayEndTime } from '@/utils/timezone'
 
 // 处理 action/data 格式的请求
 function handleActionRequest(body: any) {
@@ -28,6 +29,10 @@ function handleActionRequest(body: any) {
       return handleGetDetails(data);
     case 'search_suggestions':
       return handleSearchSuggestions(data);
+    case 'update_definition':
+      return handleUpdateDefinition(data);
+    case 'update_pronunciation':
+      return handleUpdatePronunciation(data);
     default:
       return NextResponse.json(
         { success: false, error: `未知操作: ${action}` },
@@ -38,7 +43,7 @@ function handleActionRequest(body: any) {
 
 // 添加单词处理函数
 function handleAddWord(data: any) {
-  const { word, addReason, context, sourceContentId } = data;
+  const { word, addReason, context, pronunciation } = data;
   
   if (!word || !addReason) {
     return NextResponse.json(
@@ -67,22 +72,27 @@ function handleAddWord(data: any) {
     );
   }
 
-  // 添加新单词（暂时设置默认定义）
+  // 添加新单词，设置初始复习时间（当天复习）
+  // 当天加入的生词设置当天需要复习
+  const nextReviewTime = getLocalTimeAfterDays(0); // 当天复习
   const stmt = db.prepare(`
-    INSERT INTO wordbook (word, definition, pronunciation, add_reason)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO wordbook (word, definition, pronunciation, add_reason, proficiency_level, review_count, next_review_at, created_at, last_review_at)
+    VALUES (?, ?, ?, ?, 0, 0, ?, ?, NULL)
   `);
   
+  const currentTime = getCurrentLocalTime();
   const result = stmt.run(
     word, 
-    context || '通过应用添加', // 使用context作为定义，或设置默认值
-    null, // 暂时没有发音
-    addReason
+    context || '通过应用添加',
+    pronunciation || null,
+    addReason,
+    nextReviewTime,
+    currentTime
   );
   
   // 获取完整的单词记录
   const getWordStmt = db.prepare('SELECT * FROM wordbook WHERE id = ?');
-  const newWord = getWordStmt.get(result.lastInsertRowid);
+  const newWord = getWordStmt.get(result.lastInsertRowid) as any;
   
   return NextResponse.json({
     success: true,
@@ -103,33 +113,214 @@ function handleAddWord(data: any) {
 
 // 获取统计信息处理函数
 function handleGetStats() {
-  // 返回简化的统计信息，让客户端自己计算
+  const db = getDatabase();
+  
+  try {
+    // 总单词数
+    const totalWordsResult = db.prepare('SELECT COUNT(*) as count FROM wordbook').get() as any;
+    const totalWords = totalWordsResult.count;
+    
+    // 已掌握单词数（熟练度为5）
+    const masteredWordsResult = db.prepare('SELECT COUNT(*) as count FROM wordbook WHERE proficiency_level = 5').get() as any;
+    const masteredWords = masteredWordsResult.count;
+    
+    // 需要复习的单词数（使用本地时区）
+    const currentTime = getCurrentLocalTime();
+    const needReviewWordsResult = db.prepare(`
+      SELECT COUNT(*) as count FROM wordbook 
+      WHERE next_review_at IS NULL OR next_review_at <= ?
+    `).get(currentTime) as any;
+    const needReviewWords = needReviewWordsResult.count;
+    
+    // 按添加原因统计
+    const reasonStats = db.prepare(`
+      SELECT add_reason, COUNT(*) as count 
+      FROM wordbook 
+      GROUP BY add_reason
+    `).all() as any[];
+    
+    const wordsByReason = {
+      'translation_lookup': 0,
+      'pronunciation_error': 0,
+      'listening_difficulty': 0
+    };
+    
+    reasonStats.forEach(stat => {
+      if (wordsByReason.hasOwnProperty(stat.add_reason)) {
+        wordsByReason[stat.add_reason as keyof typeof wordsByReason] = stat.count;
+      }
+    });
+    
+    // 按熟练度统计
+    const proficiencyStats = db.prepare(`
+      SELECT proficiency_level, COUNT(*) as count 
+      FROM wordbook 
+      GROUP BY proficiency_level
+    `).all() as any[];
+    
+    const wordsByProficiency = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    
+    proficiencyStats.forEach(stat => {
+      if (stat.proficiency_level >= 0 && stat.proficiency_level <= 5) {
+        wordsByProficiency[stat.proficiency_level as keyof typeof wordsByProficiency] = stat.count;
+      }
+    });
+    
+    // 平均熟练度
+    const avgResult = db.prepare('SELECT AVG(proficiency_level) as avg FROM wordbook').get() as any;
+    const averageProficiency = avgResult.avg ? Math.round(avgResult.avg * 100) / 100 : 0;
+    
+    // 今日复习数量（使用本地时区）
+    const todayStart = getTodayStartTime();
+    const todayEnd = getTodayEndTime();
+    const todayReviewResult = db.prepare(`
+      SELECT COUNT(*) as count FROM wordbook 
+      WHERE last_review_at >= ? AND last_review_at <= ?
+    `).get(todayStart, todayEnd) as any;
+    const todayReviewCount = todayReviewResult.count;
+    
+    return NextResponse.json({
+      success: true,
+      data: {
+        totalWords,
+        masteredWords,
+        needReviewWords,
+        wordsByReason,
+        wordsByProficiency,
+        averageProficiency,
+        todayReviewCount,
+        streakDays: 0 // 连续天数算法待实现
+      }
+    });
+  } catch (error) {
+    console.error('获取统计信息失败:', error);
+    return NextResponse.json(
+      { success: false, error: '获取统计信息失败' },
+      { status: 500 }
+    );
+  }
+}
+
+// 更新单词熟练度处理函数
+function handleUpdateProficiency(data: any) {
+  const { wordId, newProficiency, reviewResult } = data;
+  
+  if (wordId === undefined || newProficiency === undefined) {
+    return NextResponse.json(
+      { success: false, error: '缺少必要参数：wordId 和 newProficiency' },
+      { status: 400 }
+    );
+  }
+
+  // 验证熟练度等级
+  if (newProficiency < 0 || newProficiency > 5) {
+    return NextResponse.json(
+      { success: false, error: '熟练度等级必须在0-5之间' },
+      { status: 400 }
+    );
+  }
+
+  const db = getDatabase();
+  
+  // 检查单词是否存在
+  const existingWord = db.prepare('SELECT * FROM wordbook WHERE id = ?').get(wordId);
+  if (!existingWord) {
+    return NextResponse.json(
+      { success: false, error: '单词不存在' },
+      { status: 404 }
+    );
+  }
+
+  // 根据熟练度计算下次复习时间间隔（天数）
+  const reviewIntervalDays = {
+    0: 1,      // 1天后
+    1: 3,      // 3天后  
+    2: 7,      // 7天后
+    3: 14,     // 14天后
+    4: 30,     // 30天后
+    5: 90      // 90天后（已掌握）
+  };
+
+  const intervalDays = reviewIntervalDays[newProficiency as keyof typeof reviewIntervalDays];
+  const nextReviewTime = getLocalTimeAfterDays(intervalDays);
+  const currentTime = getCurrentLocalTime();
+
+  // 更新单词熟练度和复习信息
+  const updateStmt = db.prepare(`
+    UPDATE wordbook 
+    SET proficiency_level = ?,
+        review_count = review_count + 1,
+        last_review_at = ?,
+        next_review_at = ?
+    WHERE id = ?
+  `);
+  
+  const result = updateStmt.run(newProficiency, currentTime, nextReviewTime, wordId);
+  
+  if (result.changes === 0) {
+    return NextResponse.json(
+      { success: false, error: '更新失败' },
+      { status: 500 }
+    );
+  }
+  
+  // 获取更新后的单词记录
+  const updatedWord = db.prepare('SELECT * FROM wordbook WHERE id = ?').get(wordId) as any;
+  
   return NextResponse.json({
     success: true,
     data: {
-      totalWords: 0,
-      masteredWords: 0,
-      needReviewWords: 0,
-      wordsByReason: {
-        'translation_lookup': 0,
-        'pronunciation_error': 0,
-        'listening_difficulty': 0
-      },
-      wordsByProficiency: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-      averageProficiency: 0,
-      todayReviewCount: 0,
-      streakDays: 0
+      id: updatedWord.id,
+      word: updatedWord.word,
+      definition: updatedWord.definition,
+      pronunciation: updatedWord.pronunciation,
+      addReason: updatedWord.add_reason,
+      proficiencyLevel: updatedWord.proficiency_level,
+      reviewCount: updatedWord.review_count,
+      lastReviewAt: updatedWord.last_review_at ? new Date(updatedWord.last_review_at) : undefined,
+      nextReviewAt: updatedWord.next_review_at ? new Date(updatedWord.next_review_at) : undefined,
+      createdAt: new Date(updatedWord.created_at)
     }
   });
 }
 
-// 其他处理函数的占位符（简化实现）
-function handleUpdateProficiency(data: any) {
-  return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
-}
-
+// 删除单词处理函数
 function handleRemoveWord(data: any) {
-  return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
+  const { wordId } = data;
+  
+  if (wordId === undefined) {
+    return NextResponse.json(
+      { success: false, error: '缺少必要参数：wordId' },
+      { status: 400 }
+    );
+  }
+
+  const db = getDatabase();
+  
+  // 检查单词是否存在
+  const existingWord = db.prepare('SELECT id FROM wordbook WHERE id = ?').get(wordId);
+  if (!existingWord) {
+    return NextResponse.json(
+      { success: false, error: '单词不存在' },
+      { status: 404 }
+    );
+  }
+
+  // 删除单词
+  const deleteStmt = db.prepare('DELETE FROM wordbook WHERE id = ?');
+  const result = deleteStmt.run(wordId);
+  
+  if (result.changes === 0) {
+    return NextResponse.json(
+      { success: false, error: '删除失败' },
+      { status: 500 }
+    );
+  }
+  
+  return NextResponse.json({
+    success: true,
+    data: { deletedWordId: wordId }
+  });
 }
 
 function handleProcessReview(data: any) {
@@ -160,6 +351,112 @@ function handleSearchSuggestions(data: any) {
   return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
 }
 
+// 更新单词定义处理函数
+function handleUpdateDefinition(data: any) {
+  const { wordId, definition } = data;
+  
+  if (wordId === undefined || !definition) {
+    return NextResponse.json(
+      { success: false, error: '缺少必要参数：wordId 和 definition' },
+      { status: 400 }
+    );
+  }
+
+  const db = getDatabase();
+  
+  // 检查单词是否存在
+  const existingWord = db.prepare('SELECT id FROM wordbook WHERE id = ?').get(wordId);
+  if (!existingWord) {
+    return NextResponse.json(
+      { success: false, error: '单词不存在' },
+      { status: 404 }
+    );
+  }
+
+  // 更新单词定义
+  const updateStmt = db.prepare('UPDATE wordbook SET definition = ? WHERE id = ?');
+  const result = updateStmt.run(definition, wordId);
+  
+  if (result.changes === 0) {
+    return NextResponse.json(
+      { success: false, error: '更新失败' },
+      { status: 500 }
+    );
+  }
+  
+  // 获取更新后的单词记录
+  const updatedWord = db.prepare('SELECT * FROM wordbook WHERE id = ?').get(wordId) as any;
+  
+  return NextResponse.json({
+    success: true,
+    data: {
+      id: updatedWord.id,
+      word: updatedWord.word,
+      definition: updatedWord.definition,
+      pronunciation: updatedWord.pronunciation,
+      addReason: updatedWord.add_reason,
+      proficiencyLevel: updatedWord.proficiency_level,
+      reviewCount: updatedWord.review_count,
+      lastReviewAt: updatedWord.last_review_at ? new Date(updatedWord.last_review_at) : undefined,
+      nextReviewAt: updatedWord.next_review_at ? new Date(updatedWord.next_review_at) : undefined,
+      createdAt: new Date(updatedWord.created_at)
+    }
+  });
+}
+
+// 更新单词发音处理函数
+function handleUpdatePronunciation(data: any) {
+  const { wordId, pronunciation } = data;
+  
+  if (wordId === undefined || !pronunciation) {
+    return NextResponse.json(
+      { success: false, error: '缺少必要参数：wordId 和 pronunciation' },
+      { status: 400 }
+    );
+  }
+
+  const db = getDatabase();
+  
+  // 检查单词是否存在
+  const existingWord = db.prepare('SELECT id FROM wordbook WHERE id = ?').get(wordId);
+  if (!existingWord) {
+    return NextResponse.json(
+      { success: false, error: '单词不存在' },
+      { status: 404 }
+    );
+  }
+
+  // 更新单词发音
+  const updateStmt = db.prepare('UPDATE wordbook SET pronunciation = ? WHERE id = ?');
+  const result = updateStmt.run(pronunciation, wordId);
+  
+  if (result.changes === 0) {
+    return NextResponse.json(
+      { success: false, error: '更新失败' },
+      { status: 500 }
+    );
+  }
+  
+  // 获取更新后的单词记录
+  const updatedWord = db.prepare('SELECT * FROM wordbook WHERE id = ?').get(wordId) as any;
+  
+  return NextResponse.json({
+    success: true,
+    data: {
+      id: updatedWord.id,
+      word: updatedWord.word,
+      definition: updatedWord.definition,
+      pronunciation: updatedWord.pronunciation,
+      addReason: updatedWord.add_reason,
+      proficiencyLevel: updatedWord.proficiency_level,
+      reviewCount: updatedWord.review_count,
+      lastReviewAt: updatedWord.last_review_at ? new Date(updatedWord.last_review_at) : undefined,
+      nextReviewAt: updatedWord.next_review_at ? new Date(updatedWord.next_review_at) : undefined,
+      createdAt: new Date(updatedWord.created_at)
+    }
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -179,7 +476,9 @@ export async function GET(request: NextRequest) {
     
     // 构建WHERE条件
     if (needReview) {
-      whereConditions.push('(next_review_at IS NULL OR next_review_at <= datetime(\'now\'))')
+      const currentTime = getCurrentLocalTime();
+      whereConditions.push('(next_review_at IS NULL OR next_review_at <= ?)')
+      queryParams.push(currentTime)
       orderBy = 'ORDER BY next_review_at ASC'
     }
     
@@ -219,7 +518,21 @@ export async function GET(request: NextRequest) {
     const stmt = db.prepare(query)
     const words = stmt.all(...queryParams)
     
-    return NextResponse.json({ success: true, data: words })
+    // 转换数据库字段名为前端期望的驼峰命名
+    const transformedWords = words.map((word: any) => ({
+      id: word.id,
+      word: word.word,
+      definition: word.definition,
+      pronunciation: word.pronunciation,
+      addReason: word.add_reason,
+      proficiencyLevel: word.proficiency_level || 0,
+      reviewCount: word.review_count || 0,
+      lastReviewAt: word.last_review_at ? new Date(word.last_review_at) : undefined,
+      nextReviewAt: word.next_review_at ? new Date(word.next_review_at) : undefined,
+      createdAt: new Date(word.created_at)
+    }));
+    
+    return NextResponse.json({ success: true, data: transformedWords })
   } catch (error) {
     console.error('获取单词本失败:', error)
     return NextResponse.json(

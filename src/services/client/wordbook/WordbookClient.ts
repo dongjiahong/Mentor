@@ -71,15 +71,16 @@ export class WordbookClient {
    */
   async updateWordProficiency(
     wordId: number, 
-    newProficiency: number, 
-    reviewResult?: 'correct' | 'incorrect' | 'partially_correct'
+    proficiencyLevel: number,
+    reviewCount?: number,
+    lastReviewAt?: string,
+    nextReviewAt?: string
   ): Promise<Word> {
     return this.apiClient.post<Word>('/wordbook', {
       action: 'update_proficiency',
       data: {
         wordId,
-        newProficiency,
-        reviewResult
+        newProficiency: proficiencyLevel
       }
     });
   }
@@ -117,22 +118,32 @@ export class WordbookClient {
    */
   async processReviewResult(
     wordId: number,
-    result: 'correct' | 'incorrect' | 'partially_correct',
-    responseTime?: number
-  ): Promise<{
-    updatedWord: Word;
-    nextReviewDate: Date;
-    proficiencyChange: number;
-    streakUpdated: boolean;
-  }> {
-    return this.apiClient.post('/wordbook', {
-      action: 'process_review',
-      data: {
-        wordId,
-        result,
-        responseTime
-      }
-    });
+    result: 'unknown' | 'familiar' | 'known'
+  ): Promise<Word> {
+    // 将复习结果转换为熟练度等级调整
+    let proficiencyAdjustment = 0;
+    
+    const currentWord = await this.getWord(wordId);
+    if (!currentWord) {
+      throw new Error('单词不存在');
+    }
+    
+    let newProficiency = currentWord.proficiencyLevel;
+    
+    switch (result) {
+      case 'known':
+        newProficiency = Math.min(5, currentWord.proficiencyLevel + 1);
+        break;
+      case 'familiar':
+        // 保持当前等级
+        newProficiency = currentWord.proficiencyLevel;
+        break;
+      case 'unknown':
+        newProficiency = Math.max(0, currentWord.proficiencyLevel - 1);
+        break;
+    }
+    
+    return this.updateWordProficiency(wordId, newProficiency);
   }
 
   /**
@@ -206,18 +217,16 @@ export class WordbookClient {
   }
 
   /**
-   * 获取单词详情（包括例句、词组等）
+   * 获取单个单词信息
    */
-  async getWordDetails(wordId: number): Promise<Word & {
-    examples?: string[];
-    phrases?: string[];
-    synonyms?: string[];
-    antonyms?: string[];
-  }> {
-    return this.apiClient.post('/wordbook', {
-      action: 'get_details',
-      data: { wordId }
-    });
+  async getWord(wordId: number): Promise<Word | null> {
+    try {
+      const words = await this.getWordsList();
+      return words.find(w => w.id === wordId) || null;
+    } catch (error) {
+      console.error('获取单词失败:', error);
+      return null;
+    }
   }
 
   /**
@@ -227,6 +236,32 @@ export class WordbookClient {
     return this.apiClient.post('/wordbook', {
       action: 'search_suggestions',
       data: { query, limit }
+    });
+  }
+
+  /**
+   * 更新单词定义
+   */
+  async updateWordDefinition(wordId: number, definition: string): Promise<Word> {
+    return this.apiClient.post<Word>('/wordbook', {
+      action: 'update_definition',
+      data: {
+        wordId,
+        definition
+      }
+    });
+  }
+
+  /**
+   * 更新单词发音
+   */
+  async updateWordPronunciation(wordId: number, pronunciation: string): Promise<Word> {
+    return this.apiClient.post<Word>('/wordbook', {
+      action: 'update_pronunciation',
+      data: {
+        wordId,
+        pronunciation
+      }
     });
   }
 }

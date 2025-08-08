@@ -271,22 +271,28 @@ export function useWordbook(): UseWordbookReturn {
     definition: string
   ): Promise<Word | null> => {
     return withErrorHandling(async () => {
-      // 客户端服务暂时不支持单独更新定义，需要通过重新添加或API扩展来实现
-      console.log('更新单词定义功能待实现:', wordId, definition);
-      return null;
+      const updatedWord = await wordbookService.updateWordDefinition(wordId, definition);
+      
+      // 更新本地状态
+      setWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
+      
+      return updatedWord;
     }, '更新单词定义失败');
-  }, [withErrorHandling]);
+  }, [wordbookService, withErrorHandling]);
 
   const updateWordPronunciation = useCallback(async (
     wordId: number,
     pronunciation: string
   ): Promise<Word | null> => {
     return withErrorHandling(async () => {
-      // 客户端服务暂时不支持单独更新发音，需要通过重新添加或API扩展来实现
-      console.log('更新单词发音功能待实现:', wordId, pronunciation);
-      return null;
+      const updatedWord = await wordbookService.updateWordPronunciation(wordId, pronunciation);
+      
+      // 更新本地状态
+      setWords(prev => prev.map(w => w.id === wordId ? updatedWord : w));
+      
+      return updatedWord;
     }, '更新单词发音失败');
-  }, [withErrorHandling]);
+  }, [wordbookService, withErrorHandling]);
 
   // ==================== 查询方法 ====================
 
@@ -371,7 +377,8 @@ export function useWordbook(): UseWordbookReturn {
   // 处理复习结果
   const processReviewResult = useCallback(async (
     wordId: number, 
-    result: 'unknown' | 'familiar' | 'known'
+    result: 'unknown' | 'familiar' | 'known',
+    skipStatsUpdate: boolean = false
   ): Promise<Word | null> => {
     return withErrorHandling(async () => {
       const updatedWord = await wordbookService.processReviewResult(wordId, result);
@@ -387,8 +394,10 @@ export function useWordbook(): UseWordbookReturn {
         return filtered;
       });
 
-      // 更新统计信息
-      await loadStats();
+      // 只有在不跳过的情况下才更新统计信息
+      if (!skipStatsUpdate) {
+        await loadStats();
+      }
       
       return updatedWord;
     }, '处理复习结果失败');

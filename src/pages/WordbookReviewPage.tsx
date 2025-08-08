@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft,
@@ -19,6 +19,7 @@ export function WordbookReviewPage() {
   const {
     getTodayReviewQueue,
     processReviewResult,
+    loadStats,
     loading,
     error,
     clearError
@@ -94,34 +95,67 @@ export function WordbookReviewPage() {
 
   // 批量提交复习结果到服务端
   const submitPendingReviews = useCallback(async () => {
-    if (pendingReviews.length === 0) return;
-    
-    try {
-      // 批量处理复习结果
-      for (const review of pendingReviews) {
-        await processReviewResult(review.wordId, review.result);
-      }
+    // 使用函数式更新来获取最新的pendingReviews
+    setPendingReviews(current => {
+      if (current.length === 0) return current;
       
-      // 清空待处理队列
-      setPendingReviews([]);
+      // 保存当前待处理的复习结果
+      const reviewsToProcess = [...current];
       
-      console.log(`已提交 ${pendingReviews.length} 个复习结果`);
-    } catch (err) {
-      console.error('提交复习结果失败:', err);
-    }
-  }, [pendingReviews, processReviewResult]);
+      // 异步处理，不阻塞状态更新
+      setTimeout(async () => {
+        try {
+          console.log(`开始提交 ${reviewsToProcess.length} 个复习结果`);
+          
+          // 批量处理复习结果，都跳过统计更新
+          for (const review of reviewsToProcess) {
+            await processReviewResult(review.wordId, review.result, true); // 都跳过统计更新
+          }
+          
+          // 批量处理完成后，才更新一次统计
+          await loadStats();
+          
+          console.log(`已成功提交 ${reviewsToProcess.length} 个复习结果`);
+        } catch (err) {
+          console.error('提交复习结果失败:', err);
+          // 如果提交失败，将未处理的结果重新放回队列
+          setPendingReviews(prev => [...prev, ...reviewsToProcess]);
+        }
+      }, 0);
+      
+      // 立即返回空数组，清空待处理队列
+      return [];
+    });
+  }, [processReviewResult]);
 
+  // 添加一个ref来追踪是否已经提交过结果
+  const hasSubmittedRef = useRef(false);
+  const pendingReviewsRef = useRef(pendingReviews);
+  
+  // 同步pendingReviews的引用
+  useEffect(() => {
+    pendingReviewsRef.current = pendingReviews;
+  }, [pendingReviews]);
+  
   // 当复习完成时提交结果
   useEffect(() => {
     const isCompleted = currentIndex >= reviewQueue.length && reviewQueue.length > 0;
-    if (isCompleted && pendingReviews.length > 0) {
+    
+    if (isCompleted && pendingReviewsRef.current.length > 0 && !hasSubmittedRef.current) {
+      hasSubmittedRef.current = true;
+      console.log('复习完成，提交结果');
       submitPendingReviews();
     }
-  }, [currentIndex, reviewQueue.length, pendingReviews.length, submitPendingReviews]);
+    
+    // 如果复习重新开始，重置提交标志
+    if (currentIndex === 0 && reviewQueue.length > 0) {
+      hasSubmittedRef.current = false;
+    }
+  }, [currentIndex, reviewQueue.length, submitPendingReviews]);
 
   // 重新开始复习
   const handleRestart = () => {
-    // 先提交未处理的复习结果
+    // 先提交未处理的复习结果（只在有结果时才提交）
     if (pendingReviews.length > 0) {
       submitPendingReviews();
     }
@@ -131,13 +165,15 @@ export function WordbookReviewPage() {
     setSessionStats({ known: 0, familiar: 0, unknown: 0 });
     setPendingReviews([]);
     setReviewedWordIds(new Set());
+    // 重置提交标志
+    hasSubmittedRef.current = false;
     // 重新加载复习队列
     loadReviewQueue();
   };
 
   // 返回单词本
   const handleBack = () => {
-    // 先提交未处理的复习结果
+    // 先提交未处理的复习结果（只在有结果时才提交）
     if (pendingReviews.length > 0) {
       submitPendingReviews();
     }
