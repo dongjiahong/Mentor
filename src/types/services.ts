@@ -1,4 +1,4 @@
-import { EnglishLevel, ExamType, ActivityType, AppError } from './core';
+import { EnglishLevel, ExamType, ActivityType } from './core';
 import { LearningContent, Word, UserProfile, LearningRecord, WordDefinition } from './learning';
 import { AIConfig, ContentGenerationParams, ExamGenerationParams, PronunciationEvaluationParams, SpeechOptions, RecognitionOptions, ContentQueryParams, WordQueryParams, RecordQueryParams, ExamQueryParams, StatsQueryParams } from './api';
 import { PronunciationScore } from './practice';

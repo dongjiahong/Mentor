@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/database'
 import { getCurrentLocalTime, getLocalTimeAfterDays, getTodayStartTime, getTodayEndTime } from '@/utils/timezone'
+// Database types not used in current implementation
+import { AddWordData, UpdateProficiencyData, RemoveWordData, ProcessReviewData, BatchUpdateData, ExportData, ImportData, GetDetailsData, SearchSuggestionsData, UpdateDefinitionData, UpdatePronunciationData } from '@/types/wordbook-api'
 
 // 处理 action/data 格式的请求
-function handleActionRequest(body: any) {
+function handleActionRequest(body: { action: string; data?: any }) {
   const { action, data } = body;
 
   switch (action) {
@@ -42,7 +44,7 @@ function handleActionRequest(body: any) {
 }
 
 // 添加单词处理函数
-function handleAddWord(data: any) {
+function handleAddWord(data: AddWordData) {
   const { word, addReason, context, pronunciation } = data;
   
   if (!word || !addReason) {
@@ -146,7 +148,7 @@ function handleGetStats() {
     };
     
     reasonStats.forEach(stat => {
-      if (wordsByReason.hasOwnProperty(stat.add_reason)) {
+      if (Object.prototype.hasOwnProperty.call(wordsByReason, stat.add_reason)) {
         wordsByReason[stat.add_reason as keyof typeof wordsByReason] = stat.count;
       }
     });
@@ -202,8 +204,8 @@ function handleGetStats() {
 }
 
 // 更新单词熟练度处理函数
-function handleUpdateProficiency(data: any) {
-  const { wordId, newProficiency, reviewResult } = data;
+function handleUpdateProficiency(data: UpdateProficiencyData) {
+  const { wordId, newProficiency } = data;
   
   if (wordId === undefined || newProficiency === undefined) {
     return NextResponse.json(
@@ -285,7 +287,7 @@ function handleUpdateProficiency(data: any) {
 }
 
 // 删除单词处理函数
-function handleRemoveWord(data: any) {
+function handleRemoveWord(data: RemoveWordData) {
   const { wordId } = data;
   
   if (wordId === undefined) {
@@ -323,7 +325,7 @@ function handleRemoveWord(data: any) {
   });
 }
 
-function handleProcessReview(data: any) {
+function handleProcessReview(_data: ProcessReviewData) {
   return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
 }
 
@@ -331,28 +333,28 @@ function handleGetRecommendations() {
   return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
 }
 
-function handleBatchUpdate(data: any) {
+function handleBatchUpdate(_data: BatchUpdateData) {
   return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
 }
 
-function handleExport(data: any) {
+function handleExport(_data: ExportData) {
   return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
 }
 
-function handleImport(data: any) {
+function handleImport(_data: ImportData) {
   return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
 }
 
-function handleGetDetails(data: any) {
+function handleGetDetails(_data: GetDetailsData) {
   return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
 }
 
-function handleSearchSuggestions(data: any) {
+function handleSearchSuggestions(_data: SearchSuggestionsData) {
   return NextResponse.json({ success: false, error: '功能暂未实现' }, { status: 501 });
 }
 
 // 更新单词定义处理函数
-function handleUpdateDefinition(data: any) {
+function handleUpdateDefinition(data: UpdateDefinitionData) {
   const { wordId, definition } = data;
   
   if (wordId === undefined || !definition) {
@@ -405,7 +407,7 @@ function handleUpdateDefinition(data: any) {
 }
 
 // 更新单词发音处理函数
-function handleUpdatePronunciation(data: any) {
+function handleUpdatePronunciation(data: UpdatePronunciationData) {
   const { wordId, pronunciation } = data;
   
   if (wordId === undefined || !pronunciation) {
@@ -545,7 +547,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    console.log('Wordbook API - 收到的请求数据:', JSON.stringify(body, null, 2))
     
     // 只支持 action/data 格式
     if (!body.action) {

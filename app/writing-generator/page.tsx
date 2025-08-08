@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Bot, History } from 'lucide-react'
 import { AIWritingGenerator } from '@/components/features/AIWritingGenerator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { WritingPromptItem } from '@/services/practice'
+import { WritingPromptItem } from '@/services/practice/writing/WritingPromptsService'
 
 export default function WritingGeneratorPage() {
   const [recentPrompts, setRecentPrompts] = useState<WritingPromptItem[]>([])

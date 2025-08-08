@@ -1,6 +1,6 @@
 'use client'
 
-import { PronunciationPracticePage } from '@/pages/PronunciationPracticePage'
+import { PronunciationPracticePage } from '@/components/pages/PronunciationPracticePage'
 
 export default function PronunciationPractice() {
   return <PronunciationPracticePage />

@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/database'
 
+// 用户配置数据库记录类型
+interface UserProfileRow {
+  id: number;
+  english_level: string;
+  learning_goal: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 export async function GET() {
   try {
     const db = getDatabase()
     const stmt = db.prepare('SELECT * FROM user_profile ORDER BY created_at DESC LIMIT 1')
-    const profile = stmt.get()
+    const profile = stmt.get() as UserProfileRow | undefined
     
     if (profile) {
       // 转换字段名以匹配前端类型定义

@@ -12,7 +12,7 @@ import {
   ENGLISH_LEVEL_DESCRIPTIONS,
   WRITING_TYPE_DESCRIPTIONS
 } from '@/types';
-import { WritingPromptItem } from '@/services/practice';
+import { WritingPromptItem } from '@/services/practice/writing/WritingPromptsService';
 
 interface WritingGenerationForm {
   level: EnglishLevel;

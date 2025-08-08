@@ -1,7 +1,7 @@
 declare module 'sql.js' {
   export interface Database {
     exec(sql: string): QueryExecResult[];
-    run(sql: string, params?: any[]): void;
+    run(sql: string, params?: unknown[]): void;
     prepare(sql: string): Statement;
     export(): Uint8Array;
     close(): void;
@@ -9,13 +9,13 @@ declare module 'sql.js' {
 
   export interface QueryExecResult {
     columns: string[];
-    values: any[][];
+    values: unknown[][];
   }
 
   export interface Statement {
     step(): boolean;
-    get(): any;
-    getAsObject(): any;
+    get(): unknown;
+    getAsObject(): Record<string, unknown>;
     bind(params?: unknown[]): boolean;
     reset(): boolean;
     freemem(): void;

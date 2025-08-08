@@ -13,7 +13,12 @@ export * from './practice';
 
 // API和服务类型
 export * from './api';
+export * from './api-requests';
+export * from './wordbook-api';
 export * from './services';
+
+// 数据库类型
+export * from './database';
 
 // 组件类型
 export * from './components';

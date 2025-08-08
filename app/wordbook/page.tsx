@@ -1,6 +1,6 @@
 'use client'
 
-import { WordbookPage } from '@/pages/WordbookPage'
+import { WordbookPage } from '@/components/pages/WordbookPage'
 
 export default function Wordbook() {
   return <WordbookPage />

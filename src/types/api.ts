@@ -1,5 +1,5 @@
-import { EnglishLevel, LearningGoal, ContentType, ExamType, AppError } from './core';
-import { LearningContent, Word } from './learning';
+import { EnglishLevel, LearningGoal, ContentType, ExamType } from './core';
+import { Word } from './learning';
 
 // ============================================================================
 // API响应接口

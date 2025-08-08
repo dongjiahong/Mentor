@@ -44,7 +44,7 @@ export async function GET() {
   } catch (error) {
     console.error('数据库测试失败:', error)
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error instanceof Error ? error.message : '未知错误' },
       { status: 500 }
     )
   }

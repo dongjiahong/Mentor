@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/database';
-import { ActivityType } from '@/types';
+import { DatabaseConnection, LearningRecordRow, ActivityStatsResult } from '@/types/database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +39,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function handleRecordActivity(db: any, data: any) {
+interface RecordActivityData {
+  activityType: string;
+  contentId?: number;
+  word?: string;
+  accuracyScore?: number;
+  timeSpent: number;
+}
+
+function handleRecordActivity(db: DatabaseConnection, data: RecordActivityData) {
   try {
     const { activityType, contentId, word, accuracyScore, timeSpent } = data;
 
@@ -69,7 +77,7 @@ function handleRecordActivity(db: any, data: any) {
       timeSpent
     );
 
-    const record = db.prepare('SELECT * FROM learning_records WHERE id = ?').get(result.lastInsertRowid);
+    const record = db.prepare('SELECT * FROM learning_records WHERE id = ?').get(result.lastInsertRowid) as LearningRecordRow;
 
     return NextResponse.json({
       success: true,
@@ -89,12 +97,17 @@ function handleRecordActivity(db: any, data: any) {
   }
 }
 
-function handleGetStats(db: any, data: any) {
+interface GetStatsData {
+  startDate?: string;
+  endDate?: string;
+}
+
+function handleGetStats(db: DatabaseConnection, data: GetStatsData) {
   try {
     const { startDate, endDate } = data || {};
 
     let timeCondition = '';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
 
     if (startDate) {
       timeCondition += ' AND created_at >= ?';
@@ -112,7 +125,7 @@ function handleGetStats(db: any, data: any) {
       FROM learning_records 
       WHERE 1=1 ${timeCondition}
     `;
-    const totalTimeResult = db.prepare(totalTimeQuery).get(...params);
+    const totalTimeResult = db.prepare(totalTimeQuery).get(...params) as { total_time?: number } | undefined;
     const totalStudyTime = totalTimeResult?.total_time || 0;
 
     // 2. 单词统计
@@ -122,7 +135,7 @@ function handleGetStats(db: any, data: any) {
         COUNT(DISTINCT CASE WHEN proficiency_level >= 4 THEN word END) as mastered_words
       FROM wordbook
     `;
-    const wordStatsResult = db.prepare(wordStatsQuery).get();
+    const wordStatsResult = db.prepare(wordStatsQuery).get() as { total_words?: number; mastered_words?: number } | undefined;
     const totalWords = wordStatsResult?.total_words || 0;
     const masteredWords = wordStatsResult?.mastered_words || 0;
 
@@ -132,7 +145,7 @@ function handleGetStats(db: any, data: any) {
       FROM learning_records 
       WHERE accuracy_score IS NOT NULL ${timeCondition}
     `;
-    const accuracyResult = db.prepare(accuracyQuery).get(...params);
+    const accuracyResult = db.prepare(accuracyQuery).get(...params) as { avg_accuracy?: number } | undefined;
     const averageAccuracy = accuracyResult?.avg_accuracy || 0;
 
     // 4. 连续学习天数（简化实现）
@@ -147,7 +160,7 @@ function handleGetStats(db: any, data: any) {
       WHERE 1=1 ${timeCondition}
       GROUP BY activity_type
     `;
-    const activitiesResult = db.prepare(activitiesQuery).all(...params);
+    const activitiesResult = db.prepare(activitiesQuery).all(...params) as ActivityStatsResult[];
 
     const activitiesByType: Record<string, number> = {
       reading: 0,
@@ -156,7 +169,7 @@ function handleGetStats(db: any, data: any) {
       translation: 0
     };
 
-    activitiesResult.forEach((row: any) => {
+    activitiesResult.forEach((row: ActivityStatsResult) => {
       activitiesByType[row.activity_type] = row.count;
     });
 
@@ -177,12 +190,18 @@ function handleGetStats(db: any, data: any) {
   }
 }
 
-function handleGetRecords(db: any, data: any) {
+interface GetRecordsData {
+  limit?: number;
+  offset?: number;
+  activityType?: string;
+}
+
+function handleGetRecords(db: DatabaseConnection, data: GetRecordsData) {
   try {
     const { limit = 10, offset = 0, activityType } = data || {};
 
     let query = 'SELECT * FROM learning_records';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
 
     if (activityType) {
       query += ' WHERE activity_type = ?';
@@ -192,9 +211,9 @@ function handleGetRecords(db: any, data: any) {
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const records = db.prepare(query).all(...params);
+    const records = db.prepare(query).all(...params) as LearningRecordRow[];
 
-    const formattedRecords = records.map((record: any) => ({
+    const formattedRecords = records.map((record: LearningRecordRow) => ({
       id: record.id,
       activityType: record.activity_type,
       contentId: record.content_id,
@@ -214,7 +233,7 @@ function handleGetRecords(db: any, data: any) {
   }
 }
 
-function handleEvaluateAbilities(db: any) {
+function handleEvaluateAbilities(db: DatabaseConnection) {
   try {
     // 1. 评估词汇水平
     const vocabularyQuery = `
@@ -224,7 +243,7 @@ function handleEvaluateAbilities(db: any) {
         AVG(proficiency_level) as avg_proficiency
       FROM wordbook
     `;
-    const vocabResult = db.prepare(vocabularyQuery).get();
+    const vocabResult = db.prepare(vocabularyQuery).get() as { total_words?: number; mastered_words?: number; avg_proficiency?: number } | undefined;
     const totalWords = vocabResult?.total_words || 0;
     const masteredWords = vocabResult?.mastered_words || 0;
 
@@ -242,7 +261,7 @@ function handleEvaluateAbilities(db: any) {
         AND accuracy_score IS NOT NULL 
         AND created_at >= datetime('now', '-30 days')
     `;
-    const pronResult = db.prepare(pronunciationQuery).get();
+    const pronResult = db.prepare(pronunciationQuery).get() as { avg_accuracy?: number; total_attempts?: number } | undefined;
     const pronunciationAccuracy = pronResult?.avg_accuracy || 0;
     const pronunciationLevel = calculatePronunciationLevel(pronunciationAccuracy);
     const recentImprovement = 0; // 简化实现
@@ -256,7 +275,7 @@ function handleEvaluateAbilities(db: any) {
       WHERE activity_type = 'reading' 
         AND created_at >= datetime('now', '-30 days')
     `;
-    const readingResult = db.prepare(readingQuery).get();
+    const readingResult = db.prepare(readingQuery).get() as { avg_reading_time?: number; avg_comprehension?: number } | undefined;
     const averageReadingTime = readingResult?.avg_reading_time || 0;
     const comprehensionAccuracy = readingResult?.avg_comprehension || 0;
     const readingLevel = calculateReadingLevel(comprehensionAccuracy, averageReadingTime);
@@ -334,9 +353,15 @@ function calculateReadingLevel(comprehensionAccuracy: number, averageReadingTime
   return 'A1';
 }
 
-function handleGetProgressTrend(db: any, data: any) {
+interface GetProgressTrendData {
+  startDate?: string;
+  endDate?: string;
+  days?: number;
+}
+
+function handleGetProgressTrend(db: DatabaseConnection, data: GetProgressTrendData) {
   try {
-    const { startDate, endDate, days = 30 } = data || {};
+    const { days = 30 } = data || {};
 
     // 简化实现：生成模拟的趋势数据
     const dailyStats = [];
@@ -397,7 +422,12 @@ function handleGetProgressTrend(db: any, data: any) {
   }
 }
 
-function handleRecordWordLookup(db: any, data: any) {
+interface RecordWordLookupData {
+  word: string;
+  lookupType: string;
+}
+
+function handleRecordWordLookup(db: DatabaseConnection, data: RecordWordLookupData) {
   try {
     const { word, lookupType } = data;
 
@@ -412,7 +442,7 @@ function handleRecordWordLookup(db: any, data: any) {
 
     const result = stmt.run('translation', word, 10); // 假设查词花费10秒
 
-    const record = db.prepare('SELECT * FROM learning_records WHERE id = ?').get(result.lastInsertRowid);
+    const record = db.prepare('SELECT * FROM learning_records WHERE id = ?').get(result.lastInsertRowid) as LearningRecordRow;
 
     return NextResponse.json({
       success: true,
@@ -430,7 +460,12 @@ function handleRecordWordLookup(db: any, data: any) {
   }
 }
 
-function handleGenerateReport(db: any, data: any) {
+interface GenerateReportData {
+  startDate?: string;
+  endDate?: string;
+}
+
+function handleGenerateReport(db: DatabaseConnection, data: GenerateReportData) {
   try {
     // 获取统计数据
     const statsData = handleGetStats(db, data);
@@ -476,7 +511,7 @@ function handleGenerateReport(db: any, data: any) {
   }
 }
 
-function handleCheckLevelUpgrade(db: any) {
+function handleCheckLevelUpgrade(_db: DatabaseConnection) {
   try {
     // 简化实现：检查是否需要升级
     return NextResponse.json({
@@ -495,7 +530,7 @@ function handleCheckLevelUpgrade(db: any) {
   }
 }
 
-function handleGetAchievements(db: any, data: any) {
+function handleGetAchievements(_db: DatabaseConnection, _data: Record<string, unknown>) {
   try {
     const achievements = [
       {
@@ -527,7 +562,7 @@ function handleGetAchievements(db: any, data: any) {
   }
 }
 
-function handleGetRecommendations(db: any, data: any) {
+function handleGetRecommendations(_db: DatabaseConnection, _data: Record<string, unknown>) {
   try {
     const recommendations = [
       '建议增加听力练习时间，提升听力理解能力',

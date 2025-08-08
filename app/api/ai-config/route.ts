@@ -2,11 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/database'
 import { AIService } from '@/services/ai/AIService'
 
+// AI配置数据库记录类型
+interface AIConfigRow {
+  id: number;
+  api_url: string;
+  api_key: string;
+  model_name: string;
+  temperature?: number;
+  max_tokens?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
 export async function GET() {
   try {
     const db = getDatabase()
     const stmt = db.prepare('SELECT * FROM ai_config ORDER BY created_at DESC LIMIT 1')
-    const config = stmt.get()
+    const config = stmt.get() as AIConfigRow | undefined
     
     if (config) {
       // 不返回敏感的API密钥，只返回部分信息用于验证
@@ -69,7 +81,7 @@ export async function POST(request: NextRequest) {
     const db = getDatabase()
     
     // 检查是否已有配置
-    const existingConfig = db.prepare('SELECT id, api_key FROM ai_config LIMIT 1').get() as { id: number, api_key: string } | undefined
+    const existingConfig = db.prepare('SELECT id, api_key FROM ai_config LIMIT 1').get() as { id: number; api_key: string } | undefined
     
     if (existingConfig) {
       // 更新现有配置
