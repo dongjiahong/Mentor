@@ -27,6 +27,7 @@ import { useUnifiedSession } from '@/hooks/useUnifiedSession';
 import { 
   ModuleLearningSelector,
   ContentBrowser,
+  ContentList,
   ListeningPracticePanel,
   SpeakingPracticePanel,
   ReadingPracticePanel,
@@ -588,7 +589,10 @@ export function NewIntegratedLearningPage() {
             />
           );
         } else {
-          // 显示听力练习内容列表
+          const listeningContents = state.dbContents.filter(content => 
+            content.supportedModules.includes('listening')
+          );
+          
           return (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
@@ -601,33 +605,11 @@ export function NewIntegratedLearningPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {state.dbContents.filter(content => 
-                  content.supportedModules.includes('listening')
-                ).map(content => (
-                  <Card 
-                    key={content.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => handleContentSelect(content)}
-                  >
-                    <CardHeader>
-                      <CardTitle className="text-lg">{content.title}</CardTitle>
-                      <div className="flex gap-2">
-                        <Badge variant="outline">{content.level}</Badge>
-                        <Badge variant="secondary">{content.wordCount} 词</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {content.description}
-                      </p>
-                      <div className="text-xs text-muted-foreground">
-                        预计时长: {content.estimatedDuration} 分钟
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <ContentList
+                contents={listeningContents}
+                onContentSelect={handleContentSelect}
+                emptyMessage="暂无听力练习内容"
+              />
             </div>
           );
         }
@@ -642,10 +624,10 @@ export function NewIntegratedLearningPage() {
             />
           );
         } else {
-          // 显示口语练习内容列表
           const speakingContents = state.dbContents.filter(content => 
             content.supportedModules.includes('speaking')
           );
+          
           return (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
@@ -658,33 +640,11 @@ export function NewIntegratedLearningPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {speakingContents.map(content => (
-                  <Card 
-                    key={content.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => handleContentSelect(content)}
-                  >
-                    <CardHeader>
-                      <CardTitle className="text-lg">{content.title}</CardTitle>
-                      <div className="flex gap-2">
-                        <Badge variant="outline">{content.level}</Badge>
-                        <Badge variant="secondary">
-                          {content.sentences ? content.sentences.length : content.conversations?.length || 0} 项
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {content.description}
-                      </p>
-                      <div className="text-xs text-muted-foreground">
-                        预计时长: {content.estimatedDuration} 分钟
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <ContentList
+                contents={speakingContents}
+                onContentSelect={handleContentSelect}
+                emptyMessage="暂无口语练习内容"
+              />
             </div>
           );
         }
@@ -699,6 +659,10 @@ export function NewIntegratedLearningPage() {
             />
           );
         } else {
+          const readingContents = state.dbContents.filter(content => 
+            content.supportedModules.includes('reading')
+          );
+          
           return (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
@@ -728,42 +692,11 @@ export function NewIntegratedLearningPage() {
               )}
               
               {!dbLoading && !dbError && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {state.dbContents.filter(content => 
-                    content.supportedModules.includes('reading')
-                  ).length === 0 ? (
-                    <div className="col-span-full text-center py-12">
-                      <p className="text-muted-foreground mb-4">暂无阅读练习内容</p>
-                      <p className="text-sm text-muted-foreground">内容正在初始化中，请稍后刷新页面</p>
-                    </div>
-                  ) : (
-                    state.dbContents.filter(content => 
-                      content.supportedModules.includes('reading')
-                    ).map(content => (
-                      <Card 
-                        key={content.id}
-                        className="cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => handleContentSelect(content)}
-                      >
-                        <CardHeader>
-                          <CardTitle className="text-lg">{content.title}</CardTitle>
-                          <div className="flex gap-2">
-                            <Badge variant="outline">{content.level}</Badge>
-                            <Badge variant="secondary">{content.wordCount} 词</Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            {content.description}
-                          </p>
-                          <div className="text-xs text-muted-foreground">
-                            预计时长: {content.estimatedDuration} 分钟
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
+                <ContentList
+                  contents={readingContents}
+                  onContentSelect={handleContentSelect}
+                  emptyMessage="暂无阅读练习内容"
+                />
               )}
             </div>
           );
@@ -838,70 +771,27 @@ export function NewIntegratedLearningPage() {
               
               {/* 内容列表 */}
               {!writingLoading && !writingError && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {writingPrompts.length === 0 ? (
-                    <div className="col-span-full text-center py-12">
-                      <p className="text-muted-foreground mb-4">暂无写作练习内容</p>
-                      <p className="text-sm text-muted-foreground">请使用上方的AI生成器创建写作题目</p>
-                    </div>
-                  ) : (
-                    writingPrompts.map(prompt => (
-                      <Card 
-                        key={prompt.id}
-                        className="cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => {
-                          // 将写作提示转换为WritingPracticeContent格式
-                          const writingContent: WritingPracticeContent = {
-                            id: prompt.id.toString(),
-                            title: prompt.title,
-                            description: prompt.topic || '写作练习',
-                            level: prompt.difficulty_level as EnglishLevel,
-                            category: prompt.writing_type,
-                            practiceType: 'essay_writing' as WritingPracticeType,
-                            prompt: prompt.prompt_text,
-                            wordLimit: parseInt(prompt.word_count_requirement?.match(/\d+/)?.[0] || '200'),
-                            timeLimit: prompt.time_limit,
-                            estimatedDuration: prompt.time_limit || 30,
-                            difficulty: 3,
-                            evaluationCriteria: prompt.evaluation_criteria,
-                            sampleOutline: prompt.sample_outline
-                          };
-                          handleContentSelect(writingContent);
-                        }}
-                      >
-                        <CardHeader>
-                          <CardTitle className="text-lg">{prompt.title}</CardTitle>
-                          <div className="flex gap-2">
-                            <Badge variant="outline">{prompt.difficulty_level}</Badge>
-                            <Badge variant="secondary" className="capitalize">
-                              {prompt.writing_type}
-                            </Badge>
-                            {prompt.word_count_requirement && (
-                              <Badge variant="outline">{prompt.word_count_requirement}</Badge>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            {prompt.topic && `主题: ${prompt.topic}`}
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
-                            {prompt.prompt_text.substring(0, 100)}...
-                          </p>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>预计时长: {prompt.time_limit || 30} 分钟</span>
-                            {prompt.is_ai_generated && (
-                              <Badge variant="outline" className="text-xs">
-                                <Bot className="h-3 w-3 mr-1" />
-                                AI生成
-                              </Badge>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
+                <ContentList
+                  contents={writingPrompts.map(prompt => ({
+                    id: prompt.id.toString(),
+                    title: prompt.title,
+                    description: prompt.topic || '写作练习',
+                    level: prompt.difficulty_level as EnglishLevel,
+                    category: prompt.writing_type,
+                    practiceType: 'essay_writing' as WritingPracticeType,
+                    prompt: prompt.prompt_text,
+                    wordLimit: parseInt(prompt.word_count_requirement?.match(/\d+/)?.[0] || '200'),
+                    timeLimit: prompt.time_limit,
+                    estimatedDuration: prompt.time_limit || 30,
+                    difficulty: 3,
+                    evaluationCriteria: prompt.evaluation_criteria,
+                    sampleOutline: prompt.sample_outline
+                  } as WritingPracticeContent))}
+                  onContentSelect={(content) => {
+                    handleContentSelect(content as WritingPracticeContent);
+                  }}
+                  emptyMessage="暂无写作练习内容"
+                />
               )}
             </div>
           );

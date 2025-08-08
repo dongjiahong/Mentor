@@ -18,6 +18,7 @@ export { ProgressFeedbackCard } from './ProgressFeedbackCard';
 
 // 新的5模块架构组件
 export { ContentBrowser } from './ContentBrowser';
+export { ContentList } from './ContentList';
 export { ListeningPracticePanel } from './ListeningPracticePanel';
 export { SpeakingPracticePanel } from './SpeakingPracticePanel';
 export { ReadingPracticePanel } from './ReadingPracticePanel';

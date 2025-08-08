@@ -115,7 +115,6 @@ export function ContentBrowser({
     modules: []
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedModule, setSelectedModule] = useState<LearningModule | 'all'>('all');
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     content: UniversalContent | null;
@@ -160,15 +159,8 @@ export function ContentBrowser({
       filtered = filtered.filter(content => content.category === filters.category);
     }
 
-    // 按学习模块过滤
-    if (selectedModule !== 'all') {
-      filtered = filtered.filter(content => 
-        content.supportedModules.includes(selectedModule)
-      );
-    }
-
     return filtered;
-  }, [contents, filters, selectedModule]);
+  }, [contents, filters]);
 
   // 分页数据
   const paginatedContents = useMemo(() => {
@@ -181,7 +173,7 @@ export function ContentBrowser({
   // 重置页码当过滤条件改变时
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, selectedModule]);
+  }, [filters]);
 
   // 处理搜索
   const handleSearch = useCallback((value: string) => {
@@ -202,16 +194,8 @@ export function ContentBrowser({
       category: 'all',
       modules: []
     });
-    setSelectedModule('all');
   }, []);
 
-  // 处理模块选择
-  const handleModuleSelect = useCallback((module: LearningModule | 'all') => {
-    setSelectedModule(module);
-    if (module !== 'all' && onModuleSelect) {
-      onModuleSelect(module);
-    }
-  }, [onModuleSelect]);
 
   // 处理模块图标点击，跳转到对应模块
   const handleModuleIconClick = useCallback((module: LearningModule, content: UniversalContent, e: React.MouseEvent) => {
@@ -351,37 +335,6 @@ export function ContentBrowser({
 
   return (
     <div className={cn("w-full space-y-6", className)}>
-      {/* 学习模块标签页 */}
-      {showModuleTabs && (
-        <div className="bg-card rounded-lg border">
-          <div className="flex flex-wrap gap-2 p-4">
-            <Button
-              variant={selectedModule === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => handleModuleSelect('all')}
-              className="transition-all"
-            >
-              全部内容
-            </Button>
-            {(['content', 'listening', 'speaking', 'reading', 'writing'] as LearningModule[]).map(module => {
-              const ModuleIcon = moduleIcons[module];
-              const moduleInfo = LEARNING_MODULE_DESCRIPTIONS[module];
-              return (
-                <Button
-                  key={module}
-                  variant={selectedModule === module ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleModuleSelect(module)}
-                  className="transition-all"
-                >
-                  <ModuleIcon className="h-4 w-4 mr-2" />
-                  {moduleInfo.title}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* 搜索和过滤器 */}
       {(showSearch || showFilters) && (
@@ -455,7 +408,7 @@ export function ContentBrowser({
 
               {/* 清除过滤器按钮 */}
               {(filters.search || filters.contentType !== 'all' || filters.level !== 'all' || 
-                filters.category !== 'all' || selectedModule !== 'all') && (
+                filters.category !== 'all') && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -475,7 +428,6 @@ export function ContentBrowser({
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           找到 {filteredContents.length} 个内容
-          {selectedModule !== 'all' && ` - ${LEARNING_MODULE_DESCRIPTIONS[selectedModule].title}`}
         </p>
         {totalPages > 1 && (
           <p className="text-sm text-muted-foreground">
@@ -486,7 +438,7 @@ export function ContentBrowser({
 
       {/* 内容列表 */}
       {paginatedContents.length > 0 ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {paginatedContents.map(renderContentItem)}
         </div>
       ) : (

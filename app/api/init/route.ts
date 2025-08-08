@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { InitializationService } from '@/services/core';
 
+// 强制动态渲染，避免在构建时执行数据库初始化
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     await InitializationService.initialize();

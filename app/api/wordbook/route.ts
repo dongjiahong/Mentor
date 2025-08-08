@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/database'
 import { getCurrentLocalTime, getLocalTimeAfterDays, getTodayStartTime, getTodayEndTime } from '@/utils/timezone'
+
+// 强制动态渲染，避免在构建时执行数据库操作
+export const dynamic = 'force-dynamic'
 // Database types not used in current implementation
 import { AddWordData, UpdateProficiencyData, RemoveWordData, ProcessReviewData, BatchUpdateData, ExportData, ImportData, GetDetailsData, SearchSuggestionsData, UpdateDefinitionData, UpdatePronunciationData } from '@/types/wordbook-api'
 
