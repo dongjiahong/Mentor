@@ -15,7 +15,8 @@ import {
   Eye,
   Mic,
   Volume2,
-
+  Bot,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,6 +86,13 @@ export function WordbookPage() {
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12); // 每页显示12个单词卡
+
+  // AI翻译相关状态
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationStatus, setTranslationStatus] = useState<{
+    pendingCount: number;
+    hasTranslationNeeded: boolean;
+  } | null>(null);
 
   // 注意：不需要在这里初始化加载数据，useWordbook hook 会自动加载
 
@@ -276,6 +284,68 @@ export function WordbookPage() {
   // 获取活跃筛选器数量
   const activeFiltersCount = Object.values(filters).filter(v => v !== undefined).length + (searchQuery ? 1 : 0);
 
+  // 检查翻译状态
+  const checkTranslationStatus = async () => {
+    try {
+      const response = await fetch('/api/wordbook/ai-translate');
+      const result = await response.json();
+      
+      if (result.success) {
+        setTranslationStatus(result.data);
+      }
+    } catch (error) {
+      console.error('检查翻译状态失败:', error);
+    }
+  };
+
+  // 执行AI翻译
+  const handleAITranslation = async () => {
+    if (isTranslating) return;
+    
+    setIsTranslating(true);
+    
+    try {
+      const response = await fetch('/api/wordbook/ai-translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // 刷新单词本数据
+        await refresh();
+        // 重新检查翻译状态
+        await checkTranslationStatus();
+        
+        // 显示成功消息
+        console.log(result.data.message);
+      } else {
+        console.error('翻译失败:', result.error);
+        alert(`翻译失败: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('翻译请求失败:', error);
+      alert('翻译请求失败，请稍后重试');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // 初始化时检查翻译状态
+  useEffect(() => {
+    checkTranslationStatus();
+  }, []);
+
+  // 当单词数据变化时重新检查翻译状态
+  useEffect(() => {
+    if (words.length > 0) {
+      checkTranslationStatus();
+    }
+  }, [words]);
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* 错误提示 */}
@@ -304,6 +374,23 @@ export function WordbookPage() {
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-4">
+          {/* AI翻译按钮 */}
+          <Button
+            onClick={handleAITranslation}
+            disabled={isTranslating || !translationStatus?.hasTranslationNeeded}
+            className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+          >
+            {isTranslating ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Bot className="h-4 w-4 mr-2" />
+            )}
+            {isTranslating ? '翻译中...' : 
+             translationStatus?.hasTranslationNeeded ? 
+             `AI翻译 (${translationStatus.pendingCount})` : 
+             '暂无待翻译'}
+          </Button>
+
           {stats && stats.needReviewWords > 0 && (
             <Button
               onClick={() => router.push('/wordbook/review')}

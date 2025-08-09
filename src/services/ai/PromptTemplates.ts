@@ -313,6 +313,80 @@ export class PromptTemplates {
   }
 
   /**
+   * 生成单词翻译的系统提示词
+   */
+  static getWordTranslationSystemPrompt(): string {
+    return `你是一个专业的英语单词翻译助手。你的任务是为英语单词提供全面、准确、格式化的翻译信息。
+
+请遵循以下原则：
+1. 提供准确的词性分类，包括常见的所有词性
+2. 中文释义要自然流畅，符合中文表达习惯
+3. 英文释义要简洁明确，适合英语学习者理解
+4. 例句要实用且贴近日常使用场景
+5. 例句翻译要准确自然，帮助理解语境
+6. 为每个单词提供辅助记忆方法，帮助学习者更好地记住单词
+7. 严格按照要求的JSON格式返回结果
+8. 优先提供最常用的词性和含义
+
+返回格式要求：
+- 必须是有效的JSON格式
+- 不要包含markdown代码块标记
+- 确保所有字段都正确填写
+- 词性使用标准英文缩写（如 n., v., adj., adv. 等）`;
+  }
+
+  /**
+   * 生成单词翻译的用户提示词
+   */
+  static buildWordTranslationPrompt(words: string[]): string {
+    const wordList = words.join(', ');
+    
+    return `请为以下英语单词提供详细的翻译信息：${wordList}
+
+要求：
+1. 为每个单词提供主要词性的翻译信息
+2. 中文释义要准确、自然、易懂
+3. 英文释义要简洁明确，适合学习者理解
+4. 提供1个实用的例句，贴近日常使用场景
+5. 例句翻译要准确自然
+6. 每次可处理最多10个单词
+7. 为每个单词选择一种合适的记忆辅助方法：
+   - **形象化联想法(visual)**：把单词变成画面、故事、动作，越夸张越好，帮助大脑记忆
+   - **拆词记忆法(etymology)**：拆解成熟悉的前缀/词根/后缀，顺便学构词法
+
+**记忆辅助方法示例：**
+- abandon（放弃）→ 形象化联想：想象你把一个"班登"小镇扔在荒地里不管了
+- telegraph（电报）→ 拆词记忆：tele（远）+ graph（写）→ 远距离写字
+- gravity（重力）→ 形象化联想：想象一个巨大的grave（坟墓）把人吸进去的力量
+- submarine（潜水艇）→ 拆词记忆：sub（下）+ marine（海）→ 海下的东西
+
+请按以下JSON格式返回：
+{
+  "translations": [
+    {
+      "word": "英语单词",
+      "partOfSpeech": "词性（如: n., v., adj., adv.等）",
+      "chineseDefinition": "中文释义",
+      "englishDefinition": "英文释义", 
+      "example": "英文例句",
+      "exampleTranslation": "例句中文翻译",
+      "memoryAid": {
+        "method": "visual或etymology",
+        "content": "具体的记忆辅助内容"
+      }
+    }
+  ]
+}
+
+注意事项：
+- 如果单词有多个常用词性，请选择最主要的一个
+- 中文释义要简洁准确，不超过20字
+- 英文释义要用简单词汇解释
+- 例句要自然实用，长度适中（10-15个单词）
+- 确保例句能很好地展示单词的用法`;
+  }
+
+  /**
    * 生成话题相关的词汇建议
    */
   static getTopicVocabulary(topic: string, _level: EnglishLevel): string[] {

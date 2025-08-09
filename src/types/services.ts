@@ -7,11 +7,26 @@ import { PronunciationScore } from './practice';
 // 服务接口定义
 // ============================================================================
 
+// 单词翻译接口
+export interface WordTranslation {
+  word: string;
+  partOfSpeech: string;
+  chineseDefinition: string;
+  englishDefinition: string;
+  example: string;
+  exampleTranslation: string;
+  memoryAid: {
+    method: 'visual' | 'etymology'; // visual: 形象化联想法, etymology: 拆词记忆法
+    content: string;
+  };
+}
+
 // AI服务接口
 export interface AIService {
   generateContent(params: ContentGenerationParams): Promise<LearningContent>;
   generateExamQuestions(params: ExamGenerationParams): Promise<ExamQuestion[]>;
   evaluatePronunciation(params: PronunciationEvaluationParams): Promise<PronunciationScore>;
+  translateWords(words: string[]): Promise<WordTranslation[]>;
   validateConfig(config: AIConfig): Promise<boolean>;
 }
 

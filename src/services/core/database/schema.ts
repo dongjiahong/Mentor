@@ -58,6 +58,8 @@ export const DATABASE_SCHEMA = {
       review_count INTEGER DEFAULT 0,
       last_review_at DATETIME,
       next_review_at DATETIME,
+      is_ai_translated BOOLEAN DEFAULT FALSE,
+      ai_translated_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `,
@@ -112,6 +114,7 @@ export const DATABASE_SCHEMA = {
 export const DATABASE_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_wordbook_word ON wordbook(word);',
   'CREATE INDEX IF NOT EXISTS idx_wordbook_next_review ON wordbook(next_review_at);',
+  'CREATE INDEX IF NOT EXISTS idx_wordbook_ai_translated ON wordbook(is_ai_translated);',
   'CREATE INDEX IF NOT EXISTS idx_learning_records_activity ON learning_records(activity_type);',
   'CREATE INDEX IF NOT EXISTS idx_learning_records_created ON learning_records(created_at);',
   'CREATE INDEX IF NOT EXISTS idx_exam_records_type ON exam_records(exam_type);',

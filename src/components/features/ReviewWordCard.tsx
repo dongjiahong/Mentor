@@ -5,7 +5,13 @@ import {
   RotateCcw,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Bot,
+  BookOpen,
+  Quote,
+  Lightbulb,
+  TreePine,
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +25,33 @@ interface ReviewWordCardProps {
   onPlay?: (text: string) => void;
   isReviewed?: boolean;
 }
+
+// AI翻译内容接口
+interface AITranslationContent {
+  partOfSpeech: string;
+  chineseDefinition: string;
+  englishDefinition: string;
+  example: string;
+  exampleTranslation: string;
+  memoryAid: {
+    method: 'visual' | 'etymology';
+    content: string;
+  };
+}
+
+// 解析AI翻译内容
+const parseAITranslation = (definition: string): AITranslationContent | null => {
+  try {
+    const parsed = JSON.parse(definition);
+    if (parsed.partOfSpeech && parsed.chineseDefinition && parsed.englishDefinition && 
+        parsed.memoryAid && parsed.memoryAid.method && parsed.memoryAid.content) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
 
 // 添加原因的显示配置
 const ADD_REASON_CONFIG: Record<WordAddReason, { 
@@ -52,6 +85,10 @@ export function ReviewWordCard({
   const [showDefinition, setShowDefinition] = useState(false);
   
   const { speak } = useSpeech();
+
+  // 解析AI翻译内容
+  const aiTranslation = parseAITranslation(word.definition);
+  const isAITranslated = aiTranslation !== null;
 
   // 当单词变化时重置状态
   useEffect(() => {
@@ -125,6 +162,13 @@ export function ReviewWordCard({
                 {reasonConfig.icon}
                 <span className="ml-1">{reasonConfig.label}</span>
               </Badge>
+
+              {isAITranslated && (
+                <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                  <Bot className="h-3 w-3 mr-1" />
+                  AI翻译
+                </Badge>
+              )}
               
               {isOverdue && overdueDays > 0 && (
                 <Badge variant="outline" className="text-xs text-orange-600">
@@ -143,11 +187,85 @@ export function ReviewWordCard({
           <div className="min-h-[60px]">
             {showDefinition ? (
               <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-sm text-muted-foreground mb-1">释义</p>
-                <div className="max-h-20 overflow-y-auto">
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {word.definition}
-                  </p>
+                <p className="text-sm text-muted-foreground mb-2">释义</p>
+                <div className="max-h-40 overflow-y-auto scrollbar-thin">
+                  {isAITranslated && aiTranslation ? (
+                    <div className="space-y-3 pr-2">
+                      {/* 词性 */}
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="outline" className="text-xs font-medium">
+                          {aiTranslation.partOfSpeech}
+                        </Badge>
+                      </div>
+                      
+                      {/* 中英文释义 */}
+                      <div className="space-y-2">
+                        <div className="flex items-start space-x-2">
+                          <BookOpen className="h-3 w-3 mt-0.5 text-blue-600 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm text-foreground font-medium">
+                              {aiTranslation.chineseDefinition}
+                            </p>
+                            <p className="text-xs text-muted-foreground italic">
+                              {aiTranslation.englishDefinition}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 例句 */}
+                      {aiTranslation.example && (
+                        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-md p-2 space-y-1">
+                          <div className="flex items-start space-x-2">
+                            <Quote className="h-3 w-3 mt-0.5 text-green-600 flex-shrink-0" />
+                            <div className="space-y-1">
+                              <p className="text-xs text-foreground italic">
+                                "{aiTranslation.example}"
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {aiTranslation.exampleTranslation}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* 记忆辅助 */}
+                      {aiTranslation.memoryAid && (
+                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-md p-3 border border-purple-200 dark:border-purple-700">
+                          <div className="flex items-start space-x-2">
+                            {aiTranslation.memoryAid.method === 'visual' ? (
+                              <Lightbulb className="h-4 w-4 mt-0.5 text-amber-600 flex-shrink-0" />
+                            ) : (
+                              <TreePine className="h-4 w-4 mt-0.5 text-emerald-600 flex-shrink-0" />
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${
+                                    aiTranslation.memoryAid.method === 'visual' 
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  }`}
+                                >
+                                  <Zap className="h-3 w-3 mr-1" />
+                                  {aiTranslation.memoryAid.method === 'visual' ? '形象记忆' : '拆词记忆'}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-foreground leading-relaxed">
+                                {aiTranslation.memoryAid.content}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-foreground leading-relaxed pr-2">
+                      {word.definition}
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (

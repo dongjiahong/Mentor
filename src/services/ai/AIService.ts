@@ -7,6 +7,7 @@ import {
   ExamGenerationParams,
   PronunciationEvaluationParams,
   PronunciationScore,
+  WordTranslation,
   AppError,
   ErrorType,
   AIApiResponse,
@@ -142,6 +143,37 @@ export class AIService implements IAIService {
       return score;
     } catch (error) {
       throw this.handleError(error, '评估发音失败');
+    }
+  }
+
+  /**
+   * 翻译单词
+   */
+  async translateWords(words: string[]): Promise<WordTranslation[]> {
+    if (!this.config) {
+      throw this.createAppError(ErrorType.INVALID_CONFIG, 'AI配置未设置');
+    }
+
+    if (!words || words.length === 0) {
+      throw this.createAppError(ErrorType.INVALID_INPUT, '单词列表不能为空');
+    }
+
+    // 限制每次最多翻译10个单词
+    const wordsToTranslate = words.slice(0, 10);
+
+    const systemPrompt = PromptTemplates.getWordTranslationSystemPrompt();
+    const userPrompt = PromptTemplates.buildWordTranslationPrompt(wordsToTranslate);
+
+    try {
+      const response = await this.callChatCompletionPrivate([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]);
+
+      const translations = this.parseWordTranslationResponse(response, wordsToTranslate);
+      return translations;
+    } catch (error) {
+      throw this.handleError(error, '翻译单词失败');
     }
   }
 
@@ -334,6 +366,64 @@ export class AIService implements IAIService {
     }
 
     return validationResult.score;
+  }
+
+  /**
+   * 解析单词翻译响应
+   */
+  private parseWordTranslationResponse(response: string, requestedWords: string[]): WordTranslation[] {
+    const parseResult = ContentValidator.safeJsonParse(response);
+
+    if (!parseResult.success) {
+      throw new Error(`解析AI翻译响应失败: ${parseResult.error}`);
+    }
+
+    const data = parseResult.data;
+    if (!data || !data.translations || !Array.isArray(data.translations)) {
+      throw new Error('翻译响应格式错误：缺少translations数组');
+    }
+
+    const translations: WordTranslation[] = [];
+    
+    for (const translation of data.translations) {
+      // 验证必需字段
+      if (!translation.word || !translation.partOfSpeech || 
+          !translation.chineseDefinition || !translation.englishDefinition ||
+          !translation.example || !translation.exampleTranslation ||
+          !translation.memoryAid || !translation.memoryAid.method || !translation.memoryAid.content) {
+        continue; // 跳过不完整的翻译
+      }
+
+      // 确保翻译的单词在请求列表中
+      if (!requestedWords.includes(translation.word.toLowerCase())) {
+        continue;
+      }
+
+      // 验证记忆辅助方法
+      const validMethods = ['visual', 'etymology'];
+      if (!validMethods.includes(translation.memoryAid.method)) {
+        continue; // 跳过无效的记忆方法
+      }
+
+      translations.push({
+        word: translation.word,
+        partOfSpeech: translation.partOfSpeech,
+        chineseDefinition: translation.chineseDefinition,
+        englishDefinition: translation.englishDefinition,
+        example: translation.example,
+        exampleTranslation: translation.exampleTranslation,
+        memoryAid: {
+          method: translation.memoryAid.method as 'visual' | 'etymology',
+          content: translation.memoryAid.content
+        }
+      });
+    }
+
+    if (translations.length === 0) {
+      throw new Error('没有获取到有效的翻译结果');
+    }
+
+    return translations;
   }
 
   /**
