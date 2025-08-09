@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { WritingPracticeContent, WritingScore } from '@/types';
 import { WritingEvaluationService } from '@/services/practice/writing/WritingEvaluationService';
 import { getWordCount } from '@/lib/writingUtils';
+import { LearningRecordCollector } from '@/services/assessment/LearningRecordCollector';
 
 export interface WritingState {
   currentContent: string;
@@ -19,6 +20,8 @@ export interface UseWritingSessionReturn {
   submitWriting: () => void;
   restartWriting: () => void;
   saveDraft: () => void;
+  getSessionStats: () => any;
+  finishWriting: () => Promise<void>;
 }
 
 /**
@@ -126,12 +129,40 @@ export function useWritingSession(practiceContent: WritingPracticeContent): UseW
     };
   }, [writingState, practiceContent.practiceType]);
 
+  // 完成写作练习时记录数据
+  const finishWriting = useCallback(async () => {
+    const stats = getSessionStats();
+    
+    if (!writingState.score) {
+      console.warn('Writing not scored yet, cannot record data');
+      return;
+    }
+    
+    try {
+      await LearningRecordCollector.recordWriting({
+        contentId: practiceContent.id,
+        prompt: practiceContent.prompt,
+        userEssay: writingState.currentContent,
+        grammarScore: writingState.score.grammar,
+        vocabularyScore: writingState.score.vocabulary,
+        coherenceScore: writingState.score.coherence,
+        creativityScore: writingState.score.taskResponse, // 使用任务回应分数作为创意分数
+        wordCount: writingState.wordCount,
+        writingTime: writingState.timeSpent,
+        difficultyLevel: practiceContent.difficultyLevel
+      });
+    } catch (error) {
+      console.error('Failed to record writing data:', error);
+    }
+  }, [practiceContent, writingState, getSessionStats]);
+
   return {
     writingState,
     updateContent,
     submitWriting,
     restartWriting,
     saveDraft,
-    getSessionStats
+    getSessionStats,
+    finishWriting
   };
 }

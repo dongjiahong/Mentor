@@ -33,6 +33,7 @@ import {
   ReadingPracticePanel,
   WritingPracticePanel
 } from '@/components/features';
+import { ModuleStatsOverview } from '@/components/features/ModuleStatsDisplay';
 // 移除内存数据导入，统一使用数据库数据源
 // import { writingContents, listeningContents, readingContents } from '@/services/content/SampleContentData';
 import { learningContentService } from '@/services/content';
@@ -554,13 +555,25 @@ export function NewIntegratedLearningPage() {
     switch (state.currentView) {
       case 'home':
         return (
-          <ModuleLearningSelector
-            selectedModule={state.selectedModule}
-            onModuleSelect={handleModuleSelect}
-            userLevel="B1"
-            userProgress={state.userProgress}
-            showDetails={true}
-          />
+          <div className="space-y-6">
+            {/* 学习统计概览 */}
+            <div>
+              <h2 className="text-lg font-semibold mb-4">学习进度概览</h2>
+              <ModuleStatsOverview />
+            </div>
+            
+            {/* 模块选择器 */}
+            <div>
+              <h2 className="text-lg font-semibold mb-4">选择学习模块</h2>
+              <ModuleLearningSelector
+                selectedModule={state.selectedModule}
+                onModuleSelect={handleModuleSelect}
+                userLevel="B1"
+                userProgress={state.userProgress}
+                showDetails={true}
+              />
+            </div>
+          </div>
         );
 
       case 'content_browser':

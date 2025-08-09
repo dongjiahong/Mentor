@@ -19,6 +19,7 @@ interface ReadingResultsProps {
   getReadingSpeedLevel: () => { level: string; color: string };
   onRestart: () => void;
   onComplete: () => void;
+  finishReading?: () => Promise<void>;
   className?: string;
 }
 
@@ -33,6 +34,7 @@ export function ReadingResults({
   getReadingSpeedLevel,
   onRestart,
   onComplete,
+  finishReading,
   className
 }: ReadingResultsProps) {
   if (!showResults) {
@@ -79,7 +81,15 @@ export function ReadingResults({
               <RotateCcw className="h-4 w-4 mr-2" />
               重新阅读
             </Button>
-            <Button onClick={onComplete} className="flex-1">
+            <Button 
+              onClick={async () => {
+                if (finishReading) {
+                  await finishReading();
+                }
+                onComplete();
+              }} 
+              className="flex-1"
+            >
               完成练习
             </Button>
           </div>
@@ -101,7 +111,14 @@ export function ReadingResults({
           阅读时间: {formatTime(readingTime)} | 
           阅读速度: {Math.round(readingSpeed)} 字/分钟
         </div>
-        <Button onClick={onComplete}>
+        <Button 
+          onClick={async () => {
+            if (finishReading) {
+              await finishReading();
+            }
+            onComplete();
+          }}
+        >
           完成阅读
         </Button>
       </CardContent>

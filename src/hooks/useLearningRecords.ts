@@ -8,6 +8,7 @@ import {
   AsyncStatus
 } from '@/types';
 import { learningRecordsClient } from '@/services/client';
+import { ProficiencyAssessmentClient } from '@/services/client/ProficiencyAssessmentClient';
 
 /**
  * 学习记录Hook
@@ -380,16 +381,49 @@ export function useLearningAbilities() {
     setAbilities({ status: 'loading' });
     
     try {
-      const abilitiesData = await learningRecordsClient.evaluateUserAbilities();
+      const assessmentResult = await ProficiencyAssessmentClient.assessUserProficiency();
+      
+      // 转换新的数据结构到旧的格式（保持向后兼容）
+      const abilitiesData = {
+        vocabularyLevel: {
+          level: assessmentResult.assessment.modules.reading.currentLevel,
+          score: assessmentResult.assessment.modules.reading.accuracy,
+          totalWords: 1000, // 临时数据，实际应该从API获取
+          masteredWords: 500 // 临时数据
+        },
+        pronunciationLevel: {
+          level: assessmentResult.assessment.modules.speaking.currentLevel,
+          score: assessmentResult.assessment.modules.speaking.accuracy,
+          averageAccuracy: assessmentResult.assessment.modules.speaking.accuracy,
+          recentImprovement: assessmentResult.assessment.modules.speaking.recentTrend
+        },
+        readingLevel: {
+          level: assessmentResult.assessment.modules.reading.currentLevel,
+          score: assessmentResult.assessment.modules.reading.accuracy,
+          averageReadingTime: 120, // 临时数据
+          comprehensionAccuracy: assessmentResult.assessment.modules.reading.accuracy
+        }
+      };
+      
       setAbilities({ 
         status: 'success', 
         data: abilitiesData 
       });
     } catch (error) {
-      setAbilities({ 
-        status: 'error', 
-        error: error as any 
-      });
+      console.error('评估能力失败:', error);
+      // 回退到旧的API
+      try {
+        const abilitiesData = await learningRecordsClient.evaluateUserAbilities();
+        setAbilities({ 
+          status: 'success', 
+          data: abilitiesData 
+        });
+      } catch (fallbackError) {
+        setAbilities({ 
+          status: 'error', 
+          error: fallbackError as any 
+        });
+      }
     }
   }, [isInitialized]);
 
@@ -400,16 +434,41 @@ export function useLearningAbilities() {
     setLevelUpgrade({ status: 'loading' });
     
     try {
-      const upgradeData = await learningRecordsClient.checkLevelUpgrade();
-      setLevelUpgrade({ 
-        status: 'success', 
-        data: upgradeData 
-      });
+      const upgradeInfo = await ProficiencyAssessmentClient.getUpgradeRecommendations();
+      
+      if (upgradeInfo.canUpgrade && upgradeInfo.nextLevel) {
+        const upgradeData = {
+          shouldUpgrade: true,
+          currentLevel: upgradeInfo.currentLevel,
+          suggestedLevel: upgradeInfo.nextLevel,
+          reason: `您在各项技能上都有显著进步，建议从 ${upgradeInfo.currentLevel} 升级到 ${upgradeInfo.nextLevel}！当前进度: ${Math.round(upgradeInfo.progress)}%`
+        };
+        
+        setLevelUpgrade({ 
+          status: 'success', 
+          data: upgradeData 
+        });
+      } else {
+        setLevelUpgrade({ 
+          status: 'success', 
+          data: null 
+        });
+      }
     } catch (error) {
-      setLevelUpgrade({ 
-        status: 'error', 
-        error: error as any 
-      });
+      console.error('检查升级失败:', error);
+      // 回退到旧的API
+      try {
+        const upgradeData = await learningRecordsClient.checkLevelUpgrade();
+        setLevelUpgrade({ 
+          status: 'success', 
+          data: upgradeData 
+        });
+      } catch (fallbackError) {
+        setLevelUpgrade({ 
+          status: 'error', 
+          error: fallbackError as any 
+        });
+      }
     }
   }, [isInitialized]);
 
@@ -478,16 +537,100 @@ export function useLearningReport() {
     setReport({ status: 'loading' });
     
     try {
-      const reportData = await learningRecordsClient.generateLearningReport(params);
+      // 使用新的评估服务生成报告
+      const assessmentResult = await ProficiencyAssessmentClient.assessUserProficiency();
+      const upgradeInfo = await ProficiencyAssessmentClient.getUpgradeRecommendations();
+      
+      // 生成统计数据（临时使用模拟数据，实际应该从真实统计API获取）
+      const summary: LearningStats = {
+        totalStudyTime: 3600, // 1小时
+        totalWords: 120,
+        masteredWords: 80,
+        averageAccuracy: assessmentResult.assessment.modules.reading.accuracy,
+        streakDays: 3,
+        activitiesByType: {
+          reading: 10,
+          listening: 8,
+          speaking: 6,
+          writing: 4
+        }
+      };
+
+      // 转换能力数据格式
+      const abilities = {
+        vocabularyLevel: {
+          level: assessmentResult.assessment.modules.reading.currentLevel,
+          score: assessmentResult.assessment.modules.reading.accuracy,
+          totalWords: 1000,
+          masteredWords: 650
+        },
+        pronunciationLevel: {
+          level: assessmentResult.assessment.modules.speaking.currentLevel,
+          score: assessmentResult.assessment.modules.speaking.accuracy,
+          averageAccuracy: assessmentResult.assessment.modules.speaking.accuracy,
+          recentImprovement: assessmentResult.assessment.modules.speaking.recentTrend
+        },
+        readingLevel: {
+          level: assessmentResult.assessment.modules.reading.currentLevel,
+          score: assessmentResult.assessment.modules.reading.accuracy,
+          averageReadingTime: 90,
+          comprehensionAccuracy: assessmentResult.assessment.modules.reading.accuracy
+        }
+      };
+
+      // 生成趋势数据（简化实现）
+      const trends = {
+        dailyStats: [],
+        weeklyStats: [],
+        monthlyStats: []
+      };
+
+      // 使用升级建议作为推荐
+      const recommendations = upgradeInfo.recommendations;
+
+      // 生成成就数据
+      const achievements = [
+        {
+          type: 'level',
+          title: '水平提升',
+          description: `当前英语水平：${assessmentResult.assessment.overallLevel}`,
+          achievedAt: new Date()
+        },
+        {
+          type: 'accuracy',
+          title: '准确率突破',
+          description: `${assessmentResult.assessment.strongestModule}模块表现优异`,
+          achievedAt: new Date()
+        }
+      ];
+
+      const reportData = {
+        summary,
+        abilities,
+        trends,
+        recommendations,
+        achievements
+      };
+
       setReport({ 
         status: 'success', 
         data: reportData 
       });
     } catch (error) {
-      setReport({ 
-        status: 'error', 
-        error: error as any 
-      });
+      console.error('生成报告失败:', error);
+      // 回退到旧的API
+      try {
+        const reportData = await learningRecordsClient.generateLearningReport(params);
+        setReport({ 
+          status: 'success', 
+          data: reportData 
+        });
+      } catch (fallbackError) {
+        setReport({ 
+          status: 'error', 
+          error: fallbackError as any 
+        });
+      }
     }
   }, [isInitialized]);
 

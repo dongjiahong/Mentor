@@ -15,6 +15,12 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'record_activity':
         return handleRecordActivity(db, data);
+      case 'record_enhanced_activity':
+        return handleRecordEnhancedActivity(db, data);
+      case 'record_batch_activities':
+        return handleRecordBatchActivities(db, data);
+      case 'get_module_stats':
+        return handleGetModuleStats(db, data);
       case 'record_word_lookup':
         return handleRecordWordLookup(db, data);
       case 'get_stats':
@@ -705,5 +711,191 @@ function handleGetRecommendations() {
   } catch (error) {
     console.error('获取学习建议失败:', error);
     return NextResponse.json({ error: '获取建议失败' }, { status: 500 });
+  }
+}
+
+// 新的增强记录功能
+interface EnhancedActivityData {
+  module: 'reading' | 'listening' | 'speaking' | 'writing';
+  contentId?: number;
+  word?: string;
+  question?: string;
+  userAnswer?: string;
+  correctAnswer?: string;
+  isCorrect: boolean;
+  accuracyScore: number;
+  timeSpent: number;
+  difficultyLevel?: string;
+  metadata?: any;
+}
+
+function handleRecordEnhancedActivity(db: DatabaseConnection, data: EnhancedActivityData) {
+  try {
+    const {
+      module,
+      contentId,
+      word,
+      question,
+      userAnswer,
+      correctAnswer,
+      isCorrect,
+      accuracyScore,
+      timeSpent,
+      difficultyLevel,
+      metadata
+    } = data;
+
+    // 验证必需的字段
+    if (!module || accuracyScore == null || timeSpent == null) {
+      return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO learning_records (
+        activity_type, content_id, word, accuracy_score, time_spent, created_at
+      ) VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `);
+
+    const result = stmt.run(
+      module,
+      contentId || null,
+      word || null,
+      accuracyScore,
+      Math.round(timeSpent)
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: { id: result.lastInsertRowid }
+    });
+  } catch (error) {
+    console.error('记录增强学习活动失败:', error);
+    return NextResponse.json({ error: '记录失败' }, { status: 500 });
+  }
+}
+
+// 批量记录功能
+interface BatchActivityData {
+  records: Array<{
+    module: 'reading' | 'listening' | 'speaking' | 'writing';
+    isCorrect: boolean;
+    accuracyScore: number;
+    timeSpent: number;
+    metadata?: any;
+  }>;
+}
+
+function handleRecordBatchActivities(db: DatabaseConnection, data: BatchActivityData) {
+  try {
+    const { records } = data;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      return NextResponse.json({ error: '记录列表不能为空' }, { status: 400 });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO learning_records (
+        activity_type, accuracy_score, time_spent, created_at
+      ) VALUES (?, ?, ?, datetime('now'))
+    `);
+
+    const transaction = db.transaction((records: any[]) => {
+      for (const record of records) {
+        stmt.run(record.module, record.accuracyScore, Math.round(record.timeSpent));
+      }
+    });
+
+    transaction(records);
+
+    return NextResponse.json({
+      success: true,
+      data: { recordCount: records.length }
+    });
+  } catch (error) {
+    console.error('批量记录学习活动失败:', error);
+    return NextResponse.json({ error: '批量记录失败' }, { status: 500 });
+  }
+}
+
+// 获取模块统计
+interface ModuleStatsData {
+  module: 'reading' | 'listening' | 'speaking' | 'writing';
+}
+
+function handleGetModuleStats(db: DatabaseConnection, data: ModuleStatsData) {
+  try {
+    const { module } = data;
+
+    if (!module) {
+      return NextResponse.json({ error: '缺少模块参数' }, { status: 400 });
+    }
+
+    // 今日准确率
+    const todayQuery = `
+      SELECT AVG(accuracy_score) as accuracy, COUNT(*) as attempts
+      FROM learning_records 
+      WHERE activity_type = ? 
+        AND accuracy_score IS NOT NULL 
+        AND DATE(created_at) = DATE('now')
+    `;
+    const todayResult = db.prepare(todayQuery).get(module) as { accuracy?: number; attempts?: number } | undefined;
+
+    // 本周准确率
+    const weekQuery = `
+      SELECT AVG(accuracy_score) as accuracy, COUNT(*) as attempts
+      FROM learning_records 
+      WHERE activity_type = ? 
+        AND accuracy_score IS NOT NULL 
+        AND created_at >= datetime('now', '-7 days')
+    `;
+    const weekResult = db.prepare(weekQuery).get(module) as { accuracy?: number; attempts?: number } | undefined;
+
+    // 总体统计
+    const totalQuery = `
+      SELECT COUNT(*) as total_attempts
+      FROM learning_records 
+      WHERE activity_type = ? AND accuracy_score IS NOT NULL
+    `;
+    const totalResult = db.prepare(totalQuery).get(module) as { total_attempts?: number } | undefined;
+
+    // 计算趋势
+    const last7DaysQuery = `
+      SELECT AVG(accuracy_score) as accuracy
+      FROM learning_records 
+      WHERE activity_type = ? 
+        AND accuracy_score IS NOT NULL 
+        AND created_at >= datetime('now', '-7 days')
+    `;
+    const last14DaysQuery = `
+      SELECT AVG(accuracy_score) as accuracy
+      FROM learning_records 
+      WHERE activity_type = ? 
+        AND accuracy_score IS NOT NULL 
+        AND created_at >= datetime('now', '-14 days') 
+        AND created_at < datetime('now', '-7 days')
+    `;
+
+    const recent = db.prepare(last7DaysQuery).get(module) as { accuracy?: number } | undefined;
+    const previous = db.prepare(last14DaysQuery).get(module) as { accuracy?: number } | undefined;
+
+    const recentAccuracy = recent?.accuracy || 0;
+    const previousAccuracy = previous?.accuracy || 0;
+
+    let trend: 'up' | 'down' | 'stable' = 'stable';
+    if (recentAccuracy > previousAccuracy + 2) trend = 'up';
+    else if (recentAccuracy < previousAccuracy - 2) trend = 'down';
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        todayAccuracy: Math.round(todayResult?.accuracy || 0),
+        weekAccuracy: Math.round(weekResult?.accuracy || 0),
+        totalAttempts: totalResult?.total_attempts || 0,
+        recentTrend: trend
+      }
+    });
+  } catch (error) {
+    console.error('获取模块统计失败:', error);
+    return NextResponse.json({ error: '获取统计失败' }, { status: 500 });
   }
 }

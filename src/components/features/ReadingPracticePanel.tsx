@@ -92,6 +92,7 @@ export function ReadingPracticePanel({
         getReadingSpeedLevel={readingSession.getReadingSpeedLevel}
         onRestart={readingSession.restartReading}
         onComplete={() => onComplete(readingSession.getSessionStats())}
+        finishReading={readingSession.finishReading}
       />
       <VocabularyHighlight
         wordPopover={wordPopover}

@@ -24,3 +24,8 @@ export { SpeakingPracticePanel } from './SpeakingPracticePanel';
 export { ReadingPracticePanel } from './ReadingPracticePanel';
 export { WritingPracticePanel } from './WritingPracticePanel';
 export { ModuleLearningSelector } from './ModuleLearningSelector';
+export { 
+  ModuleStatsDisplay, 
+  ModuleStatsOverview, 
+  DetailedModuleStats 
+} from './ModuleStatsDisplay';

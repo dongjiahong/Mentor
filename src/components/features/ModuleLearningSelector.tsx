@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ import {
   LearningModule, 
   LEARNING_MODULE_DESCRIPTIONS 
 } from '@/types';
+import { ModuleStatsClient, ModuleRealStats } from '@/services/client/ModuleStatsClient';
 
 interface ModuleLearningSelectorProps {
   selectedModule?: LearningModule;
@@ -57,13 +58,13 @@ const moduleDifficulty = {
 // 模块推荐顺序
 const learningPath = ['content', 'reading', 'listening', 'speaking', 'writing'] as LearningModule[];
 
-// 模块统计数据（模拟）
-const moduleStats = {
-  content: { totalContents: 156, newThisWeek: 12, categories: 8 },
-  listening: { totalExercises: 89, avgAccuracy: 78, popularTopics: ['日常对话', '新闻听力', '学术讲座'] },
-  speaking: { totalExercises: 64, avgPronunciation: 82, practiceTypes: ['跟读', '对话', '自由表达'] },
-  reading: { totalArticles: 124, avgReadingSpeed: 195, topics: ['科技', '文化', '商务'] },
-  writing: { totalExercises: 43, avgScore: 75, types: ['邮件写作', '议论文', '创意写作'] }
+// 默认统计数据（加载时使用）
+const defaultModuleStats: ModuleRealStats = {
+  content: { totalContents: 0, newThisWeek: 0, categories: 0, recentContents: [] },
+  listening: { totalExercises: 0, avgAccuracy: 0, popularTopics: ['日常对话', '新闻听力', '学术讲座'], recentSessions: 0 },
+  speaking: { totalExercises: 0, avgPronunciation: 0, practiceTypes: ['跟读', '对话', '自由表达'], recentSessions: 0 },
+  reading: { totalArticles: 0, avgReadingSpeed: 0, topics: ['科技', '文化', '商务'], recentSessions: 0 },
+  writing: { totalExercises: 0, avgScore: 0, types: ['邮件写作', '议论文', '创意写作'], recentSessions: 0 }
 };
 
 export function ModuleLearningSelector({
@@ -75,6 +76,26 @@ export function ModuleLearningSelector({
   userProgress
 }: ModuleLearningSelectorProps) {
   const [hoveredModule, setHoveredModule] = useState<LearningModule | null>(null);
+  const [moduleStats, setModuleStats] = useState<ModuleRealStats>(defaultModuleStats);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // 加载真实统计数据
+  useEffect(() => {
+    const loadStats = async () => {
+      setStatsLoading(true);
+      try {
+        const realStats = await ModuleStatsClient.getAllModuleStats();
+        setModuleStats(realStats);
+      } catch (error) {
+        console.error('加载模块统计失败:', error);
+        // 使用默认数据
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    loadStats();
+  }, []);
 
   // 获取推荐标签
   const getRecommendationBadge = useCallback((module: LearningModule) => {
@@ -220,11 +241,15 @@ export function ModuleLearningSelector({
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex items-center gap-1">
                   <BookMarked className="h-3 w-3 text-blue-600" />
-                  <span>{stats.totalContents} 个内容</span>
+                  <span>
+                    {statsLoading ? '加载中...' : `${stats.totalContents} 个内容`}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <TrendingUp className="h-3 w-3 text-green-600" />
-                  <span>本周新增 {stats.newThisWeek}</span>
+                  <span>
+                    {statsLoading ? '加载中...' : `本周新增 ${stats.newThisWeek}`}
+                  </span>
                 </div>
               </div>
             )}
@@ -233,14 +258,16 @@ export function ModuleLearningSelector({
               <div className="space-y-1 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">练习数量</span>
-                  <span className="font-medium">{stats.totalExercises}</span>
+                  <span className="font-medium">
+                    {statsLoading ? '加载中...' : stats.totalExercises}
+                  </span>
                 </div>
-                {userModuleProgress && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">平均准确率</span>
-                    <span className="font-medium text-green-600">{userModuleProgress.averageScore}%</span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">平均准确率</span>
+                  <span className="font-medium text-green-600">
+                    {statsLoading ? '加载中...' : `${stats.avgAccuracy}%`}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -248,14 +275,16 @@ export function ModuleLearningSelector({
               <div className="space-y-1 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">发音练习</span>
-                  <span className="font-medium">{stats.totalExercises}</span>
+                  <span className="font-medium">
+                    {statsLoading ? '加载中...' : stats.totalExercises}
+                  </span>
                 </div>
-                {userModuleProgress && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">发音得分</span>
-                    <span className="font-medium text-blue-600">{userModuleProgress.averageScore}%</span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">发音得分</span>
+                  <span className="font-medium text-blue-600">
+                    {statsLoading ? '加载中...' : `${stats.avgPronunciation}%`}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -263,11 +292,15 @@ export function ModuleLearningSelector({
               <div className="space-y-1 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">文章数量</span>
-                  <span className="font-medium">{stats.totalArticles}</span>
+                  <span className="font-medium">
+                    {statsLoading ? '加载中...' : stats.totalArticles}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">平均速度</span>
-                  <span className="font-medium text-purple-600">{stats.avgReadingSpeed} 字/分</span>
+                  <span className="font-medium text-purple-600">
+                    {statsLoading ? '加载中...' : `${stats.avgReadingSpeed} 字/分`}
+                  </span>
                 </div>
               </div>
             )}
@@ -276,14 +309,16 @@ export function ModuleLearningSelector({
               <div className="space-y-1 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">写作练习</span>
-                  <span className="font-medium">{stats.totalExercises}</span>
+                  <span className="font-medium">
+                    {statsLoading ? '加载中...' : stats.totalExercises}
+                  </span>
                 </div>
-                {userModuleProgress && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">平均得分</span>
-                    <span className="font-medium text-pink-600">{userModuleProgress.averageScore}分</span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">平均得分</span>
+                  <span className="font-medium text-pink-600">
+                    {statsLoading ? '加载中...' : `${stats.avgScore}分`}
+                  </span>
+                </div>
               </div>
             )}
           </div>

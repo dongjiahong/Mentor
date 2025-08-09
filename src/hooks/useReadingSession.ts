@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ReadingPracticeContent, ReadingQuestion } from '@/types';
+import { LearningRecordCollector } from '@/services/assessment/LearningRecordCollector';
 
 export interface ReadingState {
   currentQuestionIndex: number;
@@ -30,6 +31,8 @@ export interface UseReadingSessionReturn {
   nextQuestion: () => void;
   goToQuestion: (index: number) => void;
   getReadingSpeedLevel: () => { level: string; color: string };
+  getSessionStats: () => any;
+  finishReading: () => Promise<void>;
   formatTime: (seconds: number) => string;
   handleWordClick: (word: string, event: React.MouseEvent) => { cleanWord: string; position: { x: number; y: number } };
   playText: (text: string, speechSupported: boolean, speak: (text: string, options?: any) => void) => void;
@@ -239,6 +242,27 @@ export function useReadingSession(content: ReadingPracticeContent): UseReadingSe
     };
   }, [content.questions, readingState]);
 
+  // 完成阅读练习时记录数据
+  const finishReading = useCallback(async () => {
+    const stats = getSessionStats();
+    
+    try {
+      await LearningRecordCollector.recordReading({
+        contentId: content.id,
+        totalQuestions: stats.totalQuestions,
+        correctAnswers: stats.correctAnswers,
+        readingTime: stats.readingTime,
+        readingSpeed: stats.readingSpeed,
+        comprehensionScore: stats.accuracyScore,
+        highlightedWordsCount: stats.highlightedWordsCount,
+        usedTranslation: stats.showedTranslation,
+        difficultyLevel: content.difficultyLevel
+      });
+    } catch (error) {
+      console.error('Failed to record reading data:', error);
+    }
+  }, [content, getSessionStats]);
+
   return {
     readingState,
     selectedWord,
@@ -252,6 +276,7 @@ export function useReadingSession(content: ReadingPracticeContent): UseReadingSe
     goToQuestion,
     getReadingSpeedLevel,
     getSessionStats,
+    finishReading,
     formatTime,
     handleWordClick,
     playText,

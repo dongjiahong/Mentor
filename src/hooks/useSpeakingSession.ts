@@ -6,6 +6,7 @@ import {
   ContentSentence,
   ContentDialogue
 } from '@/types';
+import { LearningRecordCollector } from '@/services/assessment/LearningRecordCollector';
 
 export interface PracticeState {
   currentIndex: number;
@@ -195,14 +196,40 @@ export function useSpeakingSession(content: UniversalContent) {
       totalAttempts,
       averageAttemptsPerItem: totalItems > 0 ? totalAttempts / totalItems : 0,
       pronunciationScores: scores.map(s => ({
-        accuracy: s.accuracy,
-        fluency: s.fluency,
-        pronunciation: s.pronunciation,
+        accuracyScore: s.accuracyScore,
+        fluencyScore: s.fluencyScore,
+        pronunciationScore: s.pronunciationScore,
         overallScore: s.overallScore
       })),
       mode: practiceState.mode
     };
   }, [practiceState, getTotalItems, calculateOverallScore, sessionStartTime]);
+
+  // 完成口语练习时记录数据
+  const finishSpeaking = useCallback(async () => {
+    const stats = getSessionStats();
+    const attempts = Array.from(practiceState.attempts.values()).flat();
+    
+    try {
+      // 批量记录每个尝试
+      for (const attempt of attempts) {
+        await LearningRecordCollector.recordSpeaking({
+          contentId: content.id,
+          word: attempt.originalText.split(' ').length <= 2 ? attempt.originalText : undefined,
+          originalText: attempt.originalText,
+          userAttempt: attempt.spokenText,
+          pronunciationScore: attempt.pronunciationScore?.pronunciationScore || 0,
+          fluencyScore: attempt.pronunciationScore?.fluencyScore || 0,
+          completenessScore: attempt.pronunciationScore?.accuracyScore || 0,
+          practiceTime: Math.round(stats.timeSpent / stats.totalAttempts / 1000), // 平均每次尝试时间
+          attemptCount: 1,
+          difficultyLevel: content.difficultyLevel
+        });
+      }
+    } catch (error) {
+      console.error('Failed to record speaking data:', error);
+    }
+  }, [content, practiceState.attempts, getSessionStats]);
 
   return {
     // State
@@ -223,6 +250,7 @@ export function useSpeakingSession(content: UniversalContent) {
     previousItem,
     retryItem,
     setShowFeedback,
-    getSessionStats
+    getSessionStats,
+    finishSpeaking
   };
 }

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ListeningPracticeContent, UniversalContent, UserAnswer, ListeningSentence } from '@/types';
 import { getDefaultSpeechService } from '@/services/language/speech/SpeechService';
+import { LearningRecordCollector } from '@/services/assessment/LearningRecordCollector';
 import { 
   convertToListeningContent, 
   createListeningSentences, 
@@ -269,6 +270,7 @@ export function useListeningSession(content: ListeningPracticeContent | Universa
     const answeredSentences = sessionState.sentences.filter(s => s.userInput && s.userInput.trim().length > 0).length;
     const correctSentences = sessionState.sentences.filter(s => s.similarity && s.similarity >= 0.7).length;
     const totalTimeSpent = Date.now() - sessionState.sessionStartTime;
+    const playedSentences = sessionState.sentences.filter(s => s.hasBeenPlayed).length;
     
     const accuracyScore = totalSentences > 0 ? (correctSentences / totalSentences) * 100 : 0;
     const completionRate = totalSentences > 0 ? (answeredSentences / totalSentences) * 100 : 0;
@@ -277,6 +279,7 @@ export function useListeningSession(content: ListeningPracticeContent | Universa
       totalSentences,
       answeredSentences,
       correctSentences,
+      playedSentences,
       accuracyScore: Math.round(accuracyScore),
       completionRate: Math.round(completionRate),
       timeSpent: totalTimeSpent,
@@ -284,11 +287,32 @@ export function useListeningSession(content: ListeningPracticeContent | Universa
     };
   }, [sessionState.sentences, sessionState.sessionStartTime]);
 
+  // 完成听力练习时记录数据
+  const finishListening = useCallback(async () => {
+    const stats = getSessionStats();
+    
+    try {
+      await LearningRecordCollector.recordListening({
+        contentId: listeningContent.id,
+        totalSegments: stats.totalSentences,
+        correctSegments: stats.correctSentences,
+        listeningTime: Math.round(stats.timeSpent / 1000), // 转换为秒
+        replayCount: stats.playedSentences,
+        finalScore: stats.accuracyScore,
+        playbackSpeed: audioState.playbackRate,
+        difficultyLevel: listeningContent.difficultyLevel
+      });
+    } catch (error) {
+      console.error('Failed to record listening data:', error);
+    }
+  }, [listeningContent, getSessionStats, audioState.playbackRate]);
+
   return {
     listeningContent,
     audioState,
     sessionState,
     getSessionStats,
+    finishListening,
     handlers: {
       handleRetry,
       playSentence,
